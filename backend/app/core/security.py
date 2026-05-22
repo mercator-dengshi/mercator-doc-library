@@ -2,12 +2,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.models.models import User
+from app.models.models import User, AIAgent, AIAgentStatus
+import hashlib
 
 settings = get_settings()
 # Use bcrypt with proper version handling
@@ -123,3 +124,53 @@ def get_current_active_editor(
             detail="Insufficient permissions. Editor access required.",
         )
     return current_user
+
+
+def get_current_agent(
+    x_api_key: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+) -> AIAgent:
+    """
+    ✅ 通过API密钥认证AI智能体(如OpenClaw等外部工具)
+    
+    使用方式:
+    - Header: X-API-Key: sk-live-xxxxx
+    
+    Args:
+        x_api_key: API密钥(从Header中获取)
+        db: 数据库会话
+    
+    Returns:
+        AIAgent: 认证的AI智能体对象
+    
+    Raises:
+        HTTPException: 如果API密钥无效或智能体被禁用
+    """
+    if not x_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key is required",
+            headers={"WWW-Authenticate": "X-API-Key"},
+        )
+    
+    # Hash the provided API key for comparison
+    api_key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
+    
+    # Query agent by hashed API key
+    agent = db.query(AIAgent).filter(
+        AIAgent.api_key_hash == api_key_hash,
+        AIAgent.status == AIAgentStatus.ACTIVE
+    ).first()
+    
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or inactive API key",
+            headers={"WWW-Authenticate": "X-API-Key"},
+        )
+    
+    # Update last active timestamp
+    agent.last_active_at = datetime.utcnow()
+    db.commit()
+    
+    return agent

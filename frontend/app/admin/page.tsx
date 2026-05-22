@@ -10,6 +10,7 @@ import UserManager from '@/components/UserManager';
 import EmailConfig from '@/components/admin/EmailConfig';
 import AIConfig from '@/components/admin/AIConfig';
 import DocumentManager from '@/components/admin/DocumentManager';
+import APIKeyManager from '@/components/admin/APIKeyManager';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -18,12 +19,13 @@ import {
   Settings,
   Mail,
   Bot,
+  Key,
   Trash2,
   TrendingUp,
   Activity
 } from 'lucide-react';
 
-type Tab = 'dashboard' | 'documents' | 'categories' | 'users' | 'recycle-bin' | 'email-config' | 'ai-config';
+type Tab = 'dashboard' | 'documents' | 'categories' | 'users' | 'recycle-bin' | 'email-config' | 'ai-config' | 'api-keys';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -66,6 +68,7 @@ export default function AdminPage() {
     { id: 'recycle-bin', label: '回收站', icon: Trash2, description: '恢复或删除文档' },
     { id: 'email-config', label: '邮件配置', icon: Mail, description: 'SMTP服务器设置' },
     { id: 'ai-config', label: 'AI配置', icon: Bot, description: '大模型API配置' },
+    { id: 'api-keys', label: 'API密钥', icon: Key, description: '管理外部智能体API密钥' },
   ];
 
   const ActiveIcon = tabs.find(t => t.id === activeTab)?.icon || LayoutDashboard;
@@ -125,6 +128,7 @@ export default function AdminPage() {
             {activeTab === 'recycle-bin' && <RecycleBin />}
             {activeTab === 'email-config' && <EmailConfig />}
             {activeTab === 'ai-config' && <AIConfig />}
+            {activeTab === 'api-keys' && <APIKeyManager />}
           </div>
         </div>
       </div>

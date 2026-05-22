@@ -1,0 +1,398 @@
+"""
+系统配置管理 API 端点
+"""
+
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from pydantic import BaseModel, Field
+import os
+import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+from app.core.database import get_db
+from app.core.security import get_current_active_admin
+from app.models.models import User
+
+router = APIRouter()
+
+# ⚠️ SECURITY IMPROVEMENT: Use environment variables instead of JSON files
+# Configuration is now loaded from .env.production or system environment
+
+
+class EmailConfig(BaseModel):
+    """邮件服务器配置"""
+    smtp_server: str = Field(..., description="SMTP服务器地址")
+    smtp_port: int = Field(..., description="SMTP端口", ge=1, le=65535)
+    smtp_user: str = Field(..., description="SMTP用户名")
+    smtp_password: str = Field(..., description="SMTP密码/授权码")
+    from_email: str = Field(..., description="发件人邮箱")
+    from_name: str = Field("Mercator文档库", description="发件人名称")
+
+
+class AIConfig(BaseModel):
+    """AI配置"""
+    provider: str = Field(..., description="AI提供商: openai, anthropic, azure, custom")
+    api_key: str = Field(..., description="API密钥")
+    model: str = Field(..., description="模型名称")
+    temperature: float = Field(0.7, description="温度值", ge=0, le=1)
+    max_tokens: int = Field(1000, description="最大Token数", ge=1)
+    base_url: Optional[str] = Field(None, description="自定义API基础URL")
+
+
+def get_email_config_from_env() -> dict:
+    """从环境变量读取邮件配置（优先使用）"""
+    return {
+        'smtp_server': os.getenv('SMTP_SERVER', ''),
+        'smtp_port': int(os.getenv('SMTP_PORT', '587')),
+        'smtp_user': os.getenv('SMTP_USER', ''),
+        'smtp_password': os.getenv('SMTP_PASSWORD', ''),
+        'from_email': os.getenv('FROM_EMAIL', ''),
+        'from_name': os.getenv('FROM_NAME', 'Mercator文档库')
+    }
+
+
+def load_config() -> dict:
+    """加载系统配置（从环境变量）"""
+    # SECURITY: 不再从JSON文件读取，改为从环境变量
+    config = {}
+    
+    # 邮件配置
+    email_config = get_email_config_from_env()
+    if email_config['smtp_server']:
+        config['email'] = email_config
+    
+    # AI配置
+    deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+    if deepseek_api_key:
+        config['ai_providers'] = [{
+            'provider': 'deepseek',
+            'api_key': deepseek_api_key,
+            'model': os.getenv('AI_MODEL', 'deepseek-chat'),
+            'temperature': float(os.getenv('AI_TEMPERATURE', '0.7')),
+            'max_tokens': int(os.getenv('AI_MAX_TOKENS', '1000'))
+        }]
+    
+    return config
+
+
+def save_config(config: dict):
+    """
+    保存系统配置（⚠️ SECURITY: 不再写入JSON文件，仅设置环境变量）
+    
+    注意：在生产环境中，应该通过 .env.production 文件或 systemd 服务配置来管理
+    """
+    # ⚠️ IMPORTANT: 不再保存到 JSON 文件，避免敏感信息泄露
+    # 配置应该通过环境变量或数据库管理
+    
+    # 临时设置环境变量（当前进程有效）
+    if 'email' in config:
+        email = config['email']
+        os.environ['SMTP_SERVER'] = str(email.get('smtp_server', ''))
+        os.environ['SMTP_PORT'] = str(email.get('smtp_port', '587'))
+        os.environ['SMTP_USER'] = str(email.get('smtp_user', ''))
+        os.environ['SMTP_PASSWORD'] = str(email.get('smtp_password', ''))
+        os.environ['FROM_EMAIL'] = str(email.get('from_email', ''))
+        os.environ['FROM_NAME'] = str(email.get('from_name', 'Mercator文档库'))
+    
+    if 'ai_providers' in config and config['ai_providers']:
+        ai = config['ai_providers'][0]
+        os.environ['DEEPSEEK_API_KEY'] = str(ai.get('api_key', ''))
+        os.environ['AI_MODEL'] = str(ai.get('model', 'deepseek-chat'))
+        os.environ['AI_TEMPERATURE'] = str(ai.get('temperature', '0.7'))
+        os.environ['AI_MAX_TOKENS'] = str(ai.get('max_tokens', '1000'))
+    
+    return True
+
+
+@router.post("/email-config")
+async def save_email_config(
+    config: EmailConfig,
+    current_user: User = Depends(get_current_active_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    保存邮件服务器配置
+    
+    ⚠️ SECURITY: 配置仅保存在内存中（环境变量），重启后失效
+    生产环境应该通过 .env.production 文件或 systemd 服务配置管理
+    
+    需要管理员权限
+    """
+    try:
+        system_config = load_config()
+        system_config['email'] = config.dict()
+        save_config(system_config)  # 仅设置环境变量，不写入文件
+        
+        return {
+            "message": "邮件配置保存成功（当前会话有效）",
+            "warning": "⚠️ 配置仅在内存中，重启后将丢失。请在 .env.production 或 systemd 服务中永久配置。",
+            "config": {
+                "smtp_server": config.smtp_server,
+                "smtp_port": config.smtp_port,
+                "from_email": config.from_email,
+                "from_name": config.from_name
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"保存配置失败: {str(e)}"
+        )
+
+
+@router.post("/email-config/test")
+async def test_email_connection(
+    config: EmailConfig,
+    current_user: User = Depends(get_current_active_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    测试邮件服务器连接
+    
+    需要管理员权限
+    """
+    try:
+        # 根据端口选择连接方式
+        if config.smtp_port == 465:
+            # SSL连接
+            server = smtplib.SMTP_SSL(config.smtp_server, config.smtp_port, timeout=10)
+        else:
+            # 普通连接
+            server = smtplib.SMTP(config.smtp_server, config.smtp_port, timeout=10)
+            server.ehlo()
+            
+            # 如果是587端口，启动TLS
+            if config.smtp_port == 587:
+                server.starttls()
+                server.ehlo()
+        
+        # 尝试登录
+        server.login(config.smtp_user, config.smtp_password)
+        server.quit()
+        
+        return {
+            "success": True,
+            "message": "邮件服务器连接测试成功！",
+            "details": {
+                "server": config.smtp_server,
+                "port": config.smtp_port,
+                "user": config.smtp_user
+            }
+        }
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="SMTP认证失败，请检查用户名和密码/授权码"
+        )
+    except smtplib.SMTPConnectError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"无法连接到SMTP服务器 {config.smtp_server}:{config.smtp_port}"
+        )
+    except smtplib.SMTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"SMTP错误: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"连接测试失败: {str(e)}"
+        )
+
+
+@router.get("/email-config")
+async def get_email_config(
+    current_user: User = Depends(get_current_active_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    获取邮件服务器配置
+    
+    需要管理员权限
+    """
+    system_config = load_config()
+    email_config = system_config.get('email', {})
+    
+    # 不返回密码
+    safe_config = {k: v for k, v in email_config.items() if k != 'smtp_password'}
+    safe_config['smtp_password'] = '********' if email_config.get('smtp_password') else ''
+    
+    return safe_config
+
+
+@router.post("/ai-config")
+async def save_ai_config(
+    config: AIConfig,
+    current_user: User = Depends(get_current_active_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    保存AI配置
+    
+    ⚠️ SECURITY: 配置仅保存在内存中（环境变量），重启后失效
+    生产环境应该通过 .env.production 文件或 systemd 服务配置管理
+    
+    需要管理员权限
+    """
+    try:
+        system_config = load_config()
+        system_config['ai_providers'] = [config.dict()]
+        save_config(system_config)  # 仅设置环境变量，不写入文件
+        
+        return {
+            "message": "AI配置保存成功（当前会话有效）",
+            "warning": "⚠️ 配置仅在内存中，重启后将丢失。请在 .env.production 或 systemd 服务中永久配置。",
+            "config": {
+                "provider": config.provider,
+                "model": config.model,
+                "temperature": config.temperature
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"保存配置失败: {str(e)}"
+        )
+
+
+@router.post("/ai-config/test")
+async def test_ai_connection(
+    config: AIConfig,
+    current_user: User = Depends(get_current_active_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    测试AI API连接
+    
+    需要管理员权限
+    """
+    try:
+        import requests
+        
+        # 根据提供商构建测试请求
+        if config.provider == 'openai':
+            url = config.base_url or "https://api.openai.com/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {config.api_key}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": config.model,
+                "messages": [{"role": "user", "content": "Hello"}],
+                "max_tokens": 5
+            }
+        elif config.provider == 'anthropic':
+            url = "https://api.anthropic.com/v1/messages"
+            headers = {
+                "x-api-key": config.api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": config.model,
+                "messages": [{"role": "user", "content": "Hello"}],
+                "max_tokens": 5
+            }
+        elif config.provider == 'deepseek':
+            # DeepSeek使用OpenAI兼容的API格式
+            if config.base_url:
+                # 如果提供了base_url,确保以/chat/completions结尾
+                url = config.base_url.rstrip('/')
+                if not url.endswith('/chat/completions'):
+                    url += '/chat/completions'
+            else:
+                url = "https://api.deepseek.com/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {config.api_key}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": config.model or "deepseek-chat",
+                "messages": [{"role": "user", "content": "Hello"}],
+                "max_tokens": 5
+            }
+        else:
+            # 自定义提供商，使用OpenAI兼容格式
+            url = config.base_url or "https://api.openai.com/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {config.api_key}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": config.model,
+                "messages": [{"role": "user", "content": "Hello"}],
+                "max_tokens": 5
+            }
+        
+        response = requests.post(url, headers=headers, json=data, timeout=10)
+        
+        if response.status_code == 200:
+            return {
+                "success": True,
+                "message": "AI API连接测试成功！",
+                "details": {
+                    "provider": config.provider,
+                    "model": config.model
+                }
+            }
+        else:
+            # Try to parse error message from JSON response
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('error', {}).get('message', '未知错误')
+            except Exception:
+                # If response is not JSON, use the raw text
+                error_msg = response.text[:200] if response.text else f"HTTP {response.status_code}"
+            
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"API返回错误: {error_msg}"
+            )
+            
+    except HTTPException:
+        raise
+    except requests.exceptions.Timeout:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="API请求超时，请检查网络连接"
+        )
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="无法连接到API服务器"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"连接测试失败: {str(e)}"
+        )
+
+
+@router.get("/ai-config")
+async def get_ai_config(
+    current_user: User = Depends(get_current_active_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    获取AI配置
+    
+    需要管理员权限
+    """
+    system_config = load_config()
+    ai_config = system_config.get('ai', {})
+    
+    # 不返回完整的API密钥
+    safe_config = ai_config.copy()
+    if safe_config.get('api_key'):
+        key = safe_config['api_key']
+        safe_config['api_key'] = key[:8] + '...' + key[-4:] if len(key) > 12 else '********'
+    
+    return safe_config

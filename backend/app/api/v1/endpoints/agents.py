@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.schemas.schemas import AIAgentCreate, AIAgentResponse, AIChatRequest, AIChatResponse
 from app.models.models import AIAgent, User, Document
+from app.models.system_config import SystemConfig, ConfigKeys
 import hashlib
 import secrets
 import os
@@ -81,7 +82,7 @@ def chat_with_ai(
     
     # Call AI API (OpenAI or other providers)
     try:
-        ai_response = call_ai_api(ai_messages, request.model)
+        ai_response = call_ai_api(ai_messages, request.model, db)  # ✅ 传递db参数
         
         return AIChatResponse(
             message={
@@ -129,50 +130,59 @@ def get_agent(agent_id: str, db: Session = Depends(get_db)):
     return agent
 
 
-def call_ai_api(messages: list, model: str = None) -> str:
+def call_ai_api(messages: list, model: str = None, db: Session = None) -> str:
     """
     调用AI API（OpenAI或其他提供商）
-    从系统配置或环境变量中读取API密钥和模型配置
+    ✅ 从数据库读取API密钥和模型配置
     
     Args:
         messages: 对话消息列表
         model: 可选的模型名称，如果未提供则使用配置中的模型
+        db: 数据库会话(可选，用于从数据库读取配置)
     """
-    import json
-    
-    # Try to load from system config first
+    # 从数据库读取AI配置
     api_key = None
     base_url = None
     temperature = 0.7
     max_tokens = 1000
     configured_model = None
     
-    config_file = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'system_config.json')
-    if os.path.exists(config_file):
+    if db:
         try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                ai_config = config.get('ai', {})
-                if ai_config:
-                    api_key = ai_config.get('api_key')
-                    base_url = ai_config.get('base_url')
-                    configured_model = ai_config.get('model')
-                    temperature = ai_config.get('temperature', 0.7)
-                    max_tokens = ai_config.get('max_tokens', 1000)
-        except Exception:
-            pass
+            # 查询AI配置
+            configs = db.query(SystemConfig).filter(
+                SystemConfig.category == 'ai'
+            ).all()
+            
+            for config in configs:
+                key = config.key.replace('ai.', '')
+                value = config.get_value()
+                
+                if key == 'api_key':
+                    api_key = value
+                elif key == 'base_url':
+                    base_url = value if value else None
+                elif key == 'model':
+                    configured_model = value
+                elif key == 'temperature':
+                    temperature = float(value) if value else 0.7
+                elif key == 'max_tokens':
+                    max_tokens = int(value) if value else 1000
+        except Exception as e:
+            print(f"⚠️  Failed to load AI config from database: {e}")
     
     # Use configured model if no model specified
     if not model and configured_model:
         model = configured_model
     elif not model:
         # Default model if nothing configured
-        model = "deepseek-v4-flash"
+        model = "deepseek-chat"
     
-    # Fallback to environment variables
+    # Fallback to environment variables (if database has no config)
     if not api_key:
-        api_key = os.getenv("OPENAI_API_KEY", "")
-        base_url = os.getenv("OPENAI_BASE_URL")
+        api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        if not base_url:
+            base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
     
     if not api_key:
         # No API key configured, return mock response
@@ -184,8 +194,10 @@ def call_ai_api(messages: list, model: str = None) -> str:
         from openai import OpenAI
         
         print(f"[AI DEBUG] Initializing OpenAI client...")
-        print(f"[AI DEBUG] api_key={api_key[:10]}... if api_key else 'None'")
+        print(f"[AI DEBUG] api_key={api_key[:10]}..." if api_key else "[AI DEBUG] api_key=None")
         print(f"[AI DEBUG] base_url={base_url}")
+        print(f"[AI DEBUG] model={model}")
+        print(f"[AI DEBUG] temperature={temperature}, max_tokens={max_tokens}")
         
         # Create client - ONLY pass api_key and base_url, nothing else!
         # OpenAI SDK v1.x 只支持这些参数

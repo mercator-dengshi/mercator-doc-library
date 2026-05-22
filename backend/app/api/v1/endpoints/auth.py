@@ -258,10 +258,8 @@ def send_password_reset_email(email: str, code: int):
     使用系统配置的SMTP服务器
     """
     import os
-    import json
     
-    # Load system configuration
-    config_file = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'system_config.json')
+    # ✅ 从数据库读取邮件配置
     smtp_server = None
     smtp_port = None
     smtp_user = None
@@ -269,22 +267,37 @@ def send_password_reset_email(email: str, code: int):
     from_email = None
     from_name = "Mercator文档库"
     
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                email_config = config.get('email', {})
-                if email_config:
-                    smtp_server = email_config.get('smtp_server')
-                    smtp_port = email_config.get('smtp_port')
-                    smtp_user = email_config.get('smtp_user')
-                    smtp_password = email_config.get('smtp_password')
-                    from_email = email_config.get('from_email')
-                    from_name = email_config.get('from_name', 'Mercator文档库')
-        except Exception:
-            pass
+    try:
+        from app.models.system_config import SystemConfig, ConfigKeys
+        from app.core.database import SessionLocal
+        
+        db = SessionLocal()
+        configs = db.query(SystemConfig).filter(
+            SystemConfig.category == 'email'
+        ).all()
+        
+        for config in configs:
+            key = config.key.replace('email.', '')
+            value = config.get_value()
+            
+            if key == 'smtp_server':
+                smtp_server = value
+            elif key == 'smtp_port':
+                smtp_port = int(value) if value else 587
+            elif key == 'smtp_user':
+                smtp_user = value
+            elif key == 'smtp_password':
+                smtp_password = value
+            elif key == 'from_email':
+                from_email = value
+            elif key == 'from_name':
+                from_name = value if value else "Mercator文档库"
+        
+        db.close()
+    except Exception as e:
+        print(f"⚠️  Failed to load email config from database: {e}")
     
-    # Fallback to environment variables
+    # Fallback to environment variables (if database has no config)
     if not smtp_server:
         smtp_server = os.getenv("SMTP_SERVER")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))

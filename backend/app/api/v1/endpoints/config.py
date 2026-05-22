@@ -15,6 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from app.core.database import get_db
 from app.core.security import get_current_active_admin
 from app.models.models import User
+from app.models.system_config import SystemConfig, ConfigKeys
 
 router = APIRouter()
 
@@ -42,40 +43,55 @@ class AIConfig(BaseModel):
     base_url: Optional[str] = Field(None, description="自定义API基础URL")
 
 
-def get_email_config_from_env() -> dict:
-    """从环境变量读取邮件配置（优先使用）"""
-    return {
-        'smtp_server': os.getenv('SMTP_SERVER', ''),
-        'smtp_port': int(os.getenv('SMTP_PORT', '587')),
-        'smtp_user': os.getenv('SMTP_USER', ''),
-        'smtp_password': os.getenv('SMTP_PASSWORD', ''),
-        'from_email': os.getenv('FROM_EMAIL', ''),
-        'from_name': os.getenv('FROM_NAME', 'Mercator文档库')
-    }
+def get_email_config_from_db(db: Session) -> dict:
+    """从数据库读取邮件配置（优先使用）"""
+    configs = db.query(SystemConfig).filter(
+        SystemConfig.category == 'email'
+    ).all()
+    
+    result = {}
+    for config in configs:
+        key = config.key.replace('email.', '')
+        result[key] = config.get_value()
+    
+    # Fallback到环境变量(如果数据库中没有配置)
+    if not result.get('smtp_server'):
+        result['smtp_server'] = os.getenv('SMTP_SERVER', '')
+        result['smtp_port'] = int(os.getenv('SMTP_PORT', '587'))
+        result['smtp_user'] = os.getenv('SMTP_USER', '')
+        result['smtp_password'] = os.getenv('SMTP_PASSWORD', '')
+        result['from_email'] = os.getenv('FROM_EMAIL', '')
+        result['from_name'] = os.getenv('FROM_NAME', 'Mercator文档库')
+    
+    return result
 
 
-def load_config() -> dict:
-    """加载系统配置（从环境变量）"""
-    # SECURITY: 不再从JSON文件读取，改为从环境变量
-    config = {}
+def get_ai_config_from_db(db: Session) -> list:
+    """从数据库读取AI配置"""
+    configs = db.query(SystemConfig).filter(
+        SystemConfig.category == 'ai'
+    ).all()
     
-    # 邮件配置
-    email_config = get_email_config_from_env()
-    if email_config['smtp_server']:
-        config['email'] = email_config
+    if not configs:
+        # Fallback到环境变量
+        deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+        if deepseek_api_key:
+            return [{
+                'provider': 'deepseek',
+                'api_key': deepseek_api_key,
+                'model': os.getenv('AI_MODEL', 'deepseek-chat'),
+                'temperature': float(os.getenv('AI_TEMPERATURE', '0.7')),
+                'max_tokens': int(os.getenv('AI_MAX_TOKENS', '1000'))
+            }]
+        return []
     
-    # AI配置
-    deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
-    if deepseek_api_key:
-        config['ai_providers'] = [{
-            'provider': 'deepseek',
-            'api_key': deepseek_api_key,
-            'model': os.getenv('AI_MODEL', 'deepseek-chat'),
-            'temperature': float(os.getenv('AI_TEMPERATURE', '0.7')),
-            'max_tokens': int(os.getenv('AI_MAX_TOKENS', '1000'))
-        }]
+    # 构建AI配置
+    ai_config = {}
+    for config in configs:
+        key = config.key.replace('ai.', '')
+        ai_config[key] = config.get_value()
     
-    return config
+    return [ai_config]
 
 
 def save_config(config: dict):
@@ -114,21 +130,49 @@ async def save_email_config(
     db: Session = Depends(get_db)
 ):
     """
-    保存邮件服务器配置
+    保存邮件服务器配置到数据库
     
-    ⚠️ SECURITY: 配置仅保存在内存中（环境变量），重启后失效
-    生产环境应该通过 .env.production 文件或 systemd 服务配置管理
+    ✅ 配置持久化存储在数据库中,重启后不会丢失
+    ✅ 支持多管理员通过仪表盘管理
+    ✅ 敏感信息加密存储
     
     需要管理员权限
     """
     try:
-        system_config = load_config()
-        system_config['email'] = config.dict()
-        save_config(system_config)  # 仅设置环境变量，不写入文件
+        # 定义字段映射
+        email_mappings = {
+            'smtp_server': ConfigKeys.EMAIL_SMTP_SERVER,
+            'smtp_port': ConfigKeys.EMAIL_SMTP_PORT,
+            'smtp_user': ConfigKeys.EMAIL_SMTP_USER,
+            'smtp_password': ConfigKeys.EMAIL_SMTP_PASSWORD,
+            'from_email': ConfigKeys.EMAIL_FROM_EMAIL,
+            'from_name': ConfigKeys.EMAIL_FROM_NAME,
+        }
+        
+        # 保存到数据库
+        for field, key in email_mappings.items():
+            value = getattr(config, field)
+            
+            # 查询或创建配置记录
+            sys_config = db.query(SystemConfig).filter_by(key=key).first()
+            if not sys_config:
+                sys_config = SystemConfig(
+                    id=key,
+                    key=key,
+                    category='email',
+                    description=f"邮件配置: {field}"
+                )
+                sys_config.created_by = current_user.id
+                db.add(sys_config)
+            
+            # 设置值(自动加密)
+            sys_config.set_value(str(value))
+            sys_config.updated_by = current_user.id
+        
+        db.commit()
         
         return {
-            "message": "邮件配置保存成功（当前会话有效）",
-            "warning": "⚠️ 配置仅在内存中，重启后将丢失。请在 .env.production 或 systemd 服务中永久配置。",
+            "message": "✅ 邮件配置保存成功(已持久化到数据库)",
             "config": {
                 "smtp_server": config.smtp_server,
                 "smtp_port": config.smtp_port,
@@ -139,6 +183,7 @@ async def save_email_config(
     except HTTPException:
         raise
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"保存配置失败: {str(e)}"
@@ -214,10 +259,11 @@ async def get_email_config(
     """
     获取邮件服务器配置
     
+    ✅ 从数据库读取配置
+    
     需要管理员权限
     """
-    system_config = load_config()
-    email_config = system_config.get('email', {})
+    email_config = get_email_config_from_db(db)
     
     # 不返回密码
     safe_config = {k: v for k, v in email_config.items() if k != 'smtp_password'}
@@ -233,21 +279,51 @@ async def save_ai_config(
     db: Session = Depends(get_db)
 ):
     """
-    保存AI配置
+    保存AI配置到数据库
     
-    ⚠️ SECURITY: 配置仅保存在内存中（环境变量），重启后失效
-    生产环境应该通过 .env.production 文件或 systemd 服务配置管理
+    ✅ 配置持久化存储在数据库中,重启后不会丢失
+    ✅ 支持多管理员通过仪表盘管理
+    ✅ 敏感信息加密存储
     
     需要管理员权限
     """
     try:
-        system_config = load_config()
-        system_config['ai_providers'] = [config.dict()]
-        save_config(system_config)  # 仅设置环境变量，不写入文件
+        # 定义字段映射
+        ai_mappings = {
+            'provider': ConfigKeys.AI_PROVIDER,
+            'api_key': ConfigKeys.AI_API_KEY,
+            'model': ConfigKeys.AI_MODEL,
+            'base_url': ConfigKeys.AI_BASE_URL,
+            'temperature': ConfigKeys.AI_TEMPERATURE,
+            'max_tokens': ConfigKeys.AI_MAX_TOKENS,
+        }
+        
+        # 保存到数据库
+        for field, key in ai_mappings.items():
+            value = getattr(config, field, None)
+            if value is None:
+                continue
+            
+            # 查询或创建配置记录
+            sys_config = db.query(SystemConfig).filter_by(key=key).first()
+            if not sys_config:
+                sys_config = SystemConfig(
+                    id=key,
+                    key=key,
+                    category='ai',
+                    description=f"AI配置: {field}"
+                )
+                sys_config.created_by = current_user.id
+                db.add(sys_config)
+            
+            # 设置值(自动加密)
+            sys_config.set_value(str(value))
+            sys_config.updated_by = current_user.id
+        
+        db.commit()
         
         return {
-            "message": "AI配置保存成功（当前会话有效）",
-            "warning": "⚠️ 配置仅在内存中，重启后将丢失。请在 .env.production 或 systemd 服务中永久配置。",
+            "message": "✅ AI配置保存成功(已持久化到数据库)",
             "config": {
                 "provider": config.provider,
                 "model": config.model,
@@ -257,6 +333,7 @@ async def save_ai_config(
     except HTTPException:
         raise
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"保存配置失败: {str(e)}"

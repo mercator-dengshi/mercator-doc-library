@@ -59,6 +59,7 @@ docs/
 
 # Deployment scripts (exclude from GitHub)
 scripts/
+!scripts/generate_env.sh
 deploy-to-ecs.sh
 rollback-ecs.sh
 auto-deploy.sh

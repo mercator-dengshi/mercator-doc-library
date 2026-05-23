@@ -337,9 +337,20 @@ def send_password_reset_email(email: str, code: int):
     
     # Build email message
     msg = MIMEMultipart()
-    msg['From'] = f"{from_name} <{from_email}>"
+    
+    # ✅ 确保 From 字段格式正确
+    if from_email:
+        msg['From'] = f"{from_name} <{from_email}>"
+    else:
+        # Fallback: 使用 smtp_user 作为发件人
+        msg['From'] = smtp_user
+    
     msg['To'] = email
     msg['Subject'] = '密码重置验证码 - Mercator文档库'
+    
+    print(f"[EMAIL DEBUG] From: {msg['From']}")
+    print(f"[EMAIL DEBUG] To: {msg['To']}")
+    print(f"[EMAIL DEBUG] Subject: {msg['Subject']}")
     
     body = f"""
     您好，

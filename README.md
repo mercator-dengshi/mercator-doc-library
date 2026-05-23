@@ -192,3 +192,29 @@ For support, please open an issue in the repository.
 ---
 
 Built with ❤️ using Next.js, FastAPI, and PostgreSQL
+
+## 📁 Project Structure
+
+```
+mercator_doc_library/
+├── backend/                 # FastAPI backend application
+│   ├── app/                # Application source code
+│   ├── .env.template       # Environment variables template
+│   └── requirements.txt    # Python dependencies
+├── frontend/               # Next.js frontend application
+│   ├── app/               # App router pages
+│   ├── components/        # React components
+│   └── lib/              # Utility functions
+├── scripts/               # Deployment & utility scripts (not in Git)
+│   ├── deploy-to-ecs-production.sh  # Production deployment script
+│   ├── deploy-to-ecs-temp.sh        # Temporary deployment script
+│   └── generate_env.sh             # Environment file generator
+├── docs/                  # Development documentation (not in Git)
+│   ├── ADMIN_GUIDE.md
+│   ├── DEPLOYMENT_GUIDE.md
+│   └── ... (other guides)
+├── tests/                 # Test scripts (not in Git)
+└── README.md             # This file
+```
+
+**Note**: Deployment scripts, detailed documentation, and test files are excluded from Git to keep the repository clean. They remain available locally for development and deployment purposes.

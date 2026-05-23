@@ -7,6 +7,7 @@ from app.models.models import User, UserRole
 from datetime import datetime, timezone
 import secrets
 import smtplib
+import email.utils
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -354,6 +355,7 @@ def send_password_reset_email(email: str, code: int):
         smtp_user = os.getenv("SMTP_USER", "")
         smtp_password = os.getenv("SMTP_PASSWORD", "")
         from_email = os.getenv("FROM_EMAIL", smtp_user)
+        from_name = os.getenv("FROM_NAME", "Mercator文档库")
     
     # If still no configuration, log and return (development mode)
     if not smtp_server or not smtp_user or not smtp_password:
@@ -365,35 +367,70 @@ def send_password_reset_email(email: str, code: int):
     msg = MIMEMultipart()
     
     # ✅ 确保 From 字段格式正确
-    if from_email:
-        msg['From'] = f"{from_name} <{from_email}>"
+    print(f"[EMAIL DEBUG] Raw from_email: {from_email}")
+    print(f"[EMAIL DEBUG] Raw from_name: {from_name}")
+    print(f"[EMAIL DEBUG] Raw smtp_user: {smtp_user}")
+    
+    # Priority: from_email config > smtp_user
+    actual_from_email = from_email if from_email else smtp_user
+    actual_from_name = from_name if from_name else "Mercator文档库"
+    
+    # Format: "Name <email>"
+    if actual_from_email:
+        msg['From'] = f"{actual_from_name} <{actual_from_email}>"
     else:
-        # Fallback: 使用 smtp_user 作为发件人
-        msg['From'] = smtp_user
+        # Absolute fallback
+        msg['From'] = f"{actual_from_name} <noreply@mercator.cn>"
     
     msg['To'] = email
     msg['Subject'] = '密码重置验证码 - Mercator文档库'
+    msg['Reply-To'] = actual_from_email  # Add Reply-To header
+    msg['Date'] = email.utils.formatdate(localtime=True)  # Add Date header
     
-    print(f"[EMAIL DEBUG] From: {msg['From']}")
+    print(f"[EMAIL DEBUG] Final From: {msg['From']}")
+    print(f"[EMAIL DEBUG] Reply-To: {msg['Reply-To']}")
     print(f"[EMAIL DEBUG] To: {msg['To']}")
     print(f"[EMAIL DEBUG] Subject: {msg['Subject']}")
     
-    body = f"""
-    您好，
-    
-    您正在请求重置Mercator文档库的密码。
-    
-    您的验证码是：{code}
-    
-    此验证码将在15分钟后过期。
-    
-    如果您没有请求重置密码，请忽略此邮件。
-    
-    祝好，
-    Mercator团队
+    # Build HTML and plain text versions
+    html_body = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #2563eb;">密码重置验证码</h2>
+            <p>您好，</p>
+            <p>您正在请求重置 Mercator 文档库的密码。</p>
+            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
+                <h1 style="margin: 0; color: #2563eb; font-size: 32px; letter-spacing: 5px;">{code}</h1>
+            </div>
+            <p>此验证码将在 <strong>15分钟</strong> 后过期。</p>
+            <p style="color: #6b7280; font-size: 14px;">如果您没有请求重置密码，请忽略此邮件。</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+            <p style="color: #6b7280; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
+            <p style="color: #6b7280; font-size: 12px;">Mercator 文档库团队</p>
+        </div>
+    </body>
+    </html>
     """
     
-    msg.attach(MIMEText(body, 'plain'))
+    plain_body = f"""
+您好，
+
+您正在请求重置 Mercator 文档库的密码。
+
+您的验证码是：{code}
+
+此验证码将在 15分钟 后过期。
+
+如果您没有请求重置密码，请忽略此邮件。
+
+祝好，
+Mercator 文档库团队
+    """
+    
+    # Attach both HTML and plain text versions
+    msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
+    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
     
     # Send email
     try:

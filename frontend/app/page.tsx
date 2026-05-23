@@ -8,7 +8,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Mercator 文档库
+              Mercator Doc Library
             </h1>
             <p className="text-xl text-gray-700 dark:text-gray-300 mb-8">
               一个面向人类和 AI 智能体的现代化文档平台。

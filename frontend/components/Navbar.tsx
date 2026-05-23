@@ -17,7 +17,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">
-            Mercator 文档库
+            Mercator Doc Library
           </Link>
 
           {/* Navigation Links */}

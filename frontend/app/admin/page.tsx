@@ -145,7 +145,7 @@ function DashboardContent({ stats, onNavigate, versionInfo }: { stats?: any; onN
     <div className="space-y-6">
       {/* 系统概览 */}
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
-        <h2 className="text-2xl font-bold mb-2">👋 欢迎使用 Mercator 文档库管理系统</h2>
+        <h2 className="text-2xl font-bold mb-2">👋 Welcome to Mercator Doc Library Admin</h2>
         <p className="text-blue-100">当前版本: {latestVersion} | 发布日期: {releaseDate}</p>
       </div>
 

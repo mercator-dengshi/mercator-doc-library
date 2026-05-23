@@ -198,7 +198,7 @@ export default function APIKeyManager() {
             <Bot size={48} className="mx-auto text-gray-400 mb-4" />
             <p className="text-gray-600 dark:text-gray-400">暂无API密钥</p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-              点击"创建智能体"开始使用
+              点击&quot;创建智能体&quot;开始使用
             </p>
           </div>
         )}

@@ -194,8 +194,15 @@ def create_document(
     
     # For agents, we need to get the owner_id
     author_id = editor_id
+    last_editor_id_for_db = None  # 默认值
+    
     if editor['type'] == 'agent':
+        # Agent编辑: author_id使用owner_id, last_editor_id设为None(因为agent不在users表中)
         author_id = editor['obj'].owner_id or editor_id
+        last_editor_id_for_db = None  # AI agent不在users表中,不能设置last_editor_id
+    else:
+        # Human编辑: 使用user ID
+        last_editor_id_for_db = editor_id
     
     # Create document
     new_doc = Document(
@@ -205,7 +212,7 @@ def create_document(
         excerpt=doc_data.content[:200] if doc_data.content else None,
         category_id=doc_data.category_id,
         author_id=author_id,
-        last_editor_id=editor_id,
+        last_editor_id=last_editor_id_for_db,  # ✅ 修复: AI agent时为None
         last_editor_type=editor_type,
         custom_metadata=doc_data.metadata,
         is_public=doc_data.is_public,
@@ -250,6 +257,9 @@ def update_document(
     editor_id = editor['id']
     editor_type = EditorType.AI if editor['type'] == 'agent' else EditorType.HUMAN
     
+    # For agents, last_editor_id should be None (agents are not in users table)
+    last_editor_id_for_db = None if editor['type'] == 'agent' else editor_id
+    
     # Permission check
     if editor['type'] == 'user':
         # Human user: admin can edit any, editor can only edit own
@@ -285,7 +295,7 @@ def update_document(
         document.custom_metadata = doc_data.metadata
     
     # Update editor info
-    document.last_editor_id = editor_id
+    document.last_editor_id = last_editor_id_for_db  # ✅ 修复: AI agent时为None
     document.last_editor_type = editor_type
     
     # Increment version

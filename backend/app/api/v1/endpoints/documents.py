@@ -31,16 +31,10 @@ def get_editor_from_api_key_or_token(
             from app.core.security import get_current_agent
             agent = get_current_agent(x_api_key=x_api_key, db=db)
             
-            # ✅ 检查API密钥权限 - 必须有create_documents权限
-            if not agent.permissions.get('create_documents', False):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="This API key does not have permission to create documents"
-                )
-            
+            # ✅ API密钥默认拥有全部权限，无需额外检查
             return {"type": "agent", "id": agent.id, "obj": agent}
         except HTTPException:
-            raise  # Re-raise HTTPException (including permission denied)
+            raise  # Re-raise HTTPException (invalid/expired API key)
     
     # Fallback to JWT token
     if authorization and authorization.startswith("Bearer "):
@@ -277,13 +271,7 @@ def update_document(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only edit your own documents"
             )
-    elif editor['type'] == 'agent':
-        # ✅ AI Agent: 检查是否有update_documents权限
-        if not editor['obj'].permissions.get('update_documents', False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="This API key does not have permission to update documents"
-            )
+    # AI Agent: 默认拥有全部权限，无需检查
     
     # Check if document is archived
     if document.status == DocumentStatus.ARCHIVED:
@@ -356,13 +344,7 @@ def delete_document(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="You can only delete your own documents"
                 )
-    elif editor['type'] == 'agent':
-        # ✅ AI Agent: 检查是否有delete_documents权限
-        if not editor['obj'].permissions.get('delete_documents', False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="This API key does not have permission to delete documents"
-            )
+    # AI Agent: 默认拥有全部权限，无需检查
     
     # Soft delete
     document.deleted_at = datetime.now(timezone.utc)

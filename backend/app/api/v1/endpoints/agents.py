@@ -62,6 +62,10 @@ def list_agents(
         AIAgent.owner_id == current_user.id
     ).order_by(AIAgent.created_at.desc()).all()
     
+    print(f" [DEBUG] Listing agents for user {current_user.id}: found {len(agents)} agents")
+    for agent in agents:
+        print(f"  - Agent: {agent.name}, id={agent.id}, owner_id={agent.owner_id}")
+    
     return agents
 
 

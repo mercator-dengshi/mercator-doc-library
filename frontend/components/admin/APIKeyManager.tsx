@@ -29,10 +29,11 @@ export default function APIKeyManager() {
   const queryClient = useQueryClient();
 
   // 获取智能体列表
-  const { data: agents, isLoading } = useQuery({
+  const { data: agents, isLoading, refetch } = useQuery({
     queryKey: ['ai-agents'],
     queryFn: async () => {
       const response = await apiClient.get('/agents/');
+      console.log('API agents response:', response.data);
       return response.data;
     }
   });
@@ -52,7 +53,9 @@ export default function APIKeyManager() {
       return response.data;
     },
     onSuccess: (data) => {
+      console.log('Create agent response:', data);
       queryClient.invalidateQueries({ queryKey: ['ai-agents'] });
+      setTimeout(() => refetch(), 500); // 延迟500ms后重新获取
       setCreatedApiKey(data.api_key);
       setShowCreateModal(false);
       setNewAgentName('');
@@ -67,6 +70,7 @@ export default function APIKeyManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-agents'] });
+      setTimeout(() => refetch(), 500); // 延迟500ms后重新获取
     }
   });
 

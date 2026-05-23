@@ -194,6 +194,7 @@ def reset_password(
     # Find user by email
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
+        print(f"[RESET_PASSWORD] User not found for email: {request.email}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid email or verification code"
@@ -204,22 +205,41 @@ def reset_password(
     stored_code = metadata.get('password_reset_code')
     expiry_str = metadata.get('password_reset_expiry')
     
+    print(f"[RESET_PASSWORD] Email: {request.email}")
+    print(f"[RESET_PASSWORD] Received code: {request.verification_code}")
+    print(f"[RESET_PASSWORD] Stored code: {stored_code}")
+    print(f"[RESET_PASSWORD] Expiry: {expiry_str}")
+    
     if not stored_code or not expiry_str:
+        print(f"[RESET_PASSWORD] No pending password reset request")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No pending password reset request"
         )
     
     # Check if code has expired
-    expiry_time = datetime.fromisoformat(expiry_str)
-    if datetime.now(timezone.utc) > expiry_time:
+    try:
+        expiry_time = datetime.fromisoformat(expiry_str)
+        print(f"[RESET_PASSWORD] Current time (UTC): {datetime.now(timezone.utc)}")
+        print(f"[RESET_PASSWORD] Expiry time: {expiry_time}")
+        print(f"[RESET_PASSWORD] Is expired: {datetime.now(timezone.utc) > expiry_time}")
+        
+        if datetime.now(timezone.utc) > expiry_time:
+            print(f"[RESET_PASSWORD] Verification code has expired")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Verification code has expired"
+            )
+    except Exception as e:
+        print(f"[RESET_PASSWORD] Error parsing expiry time: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verification code has expired"
+            detail="Invalid verification code format"
         )
     
     # Verify code matches
     if str(request.verification_code) != stored_code:
+        print(f"[RESET_PASSWORD] Code mismatch! Received: {request.verification_code}, Stored: {stored_code}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid verification code"

@@ -11,7 +11,6 @@ interface User {
   name: string;
   role: 'admin' | 'editor' | 'viewer';
   is_active: boolean;
-  ai_enabled: boolean;  // AI助手使用权限
   created_at: string;
 }
 
@@ -40,19 +39,6 @@ export default function UserManager() {
     },
     onError: (err: any) => {
       alert(err.response?.data?.detail || '更新角色失败');
-    },
-  });
-
-  const updateAiPermissionMutation = useMutation({
-    mutationFn: async ({ userId, aiEnabled }: { userId: string; aiEnabled: boolean }) => {
-      const response = await apiClient.put(`/users/${userId}/ai-permission?ai_enabled=${aiEnabled}`);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-    onError: (err: any) => {
-      alert(err.response?.data?.detail || '更新AI权限失败');
     },
   });
 
@@ -117,7 +103,6 @@ export default function UserManager() {
               <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">邮箱</th>
               <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">角色</th>
               <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">状态</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">AI助手</th>
               <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">注册时间</th>
               <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-400">操作</th>
             </tr>
@@ -138,28 +123,6 @@ export default function UserManager() {
                   <span className={`px-2 py-1 rounded text-xs ${user.is_active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
                     {user.is_active ? '活跃' : '禁用'}
                   </span>
-                </td>
-                <td className="py-3 px-4">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={user.ai_enabled}
-                      onChange={(e) => {
-                        if (confirm(`确定要${e.target.checked ? '开启' : '关闭'} "${user.name}" 的AI助手权限吗？`)) {
-                          updateAiPermissionMutation.mutate({ 
-                            userId: user.id, 
-                            aiEnabled: e.target.checked 
-                          });
-                        }
-                      }}
-                      disabled={updateAiPermissionMutation.isPending}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                    <span className="ml-2 text-xs text-gray-600 dark:text-gray-400">
-                      {user.ai_enabled ? '已开启' : '未开启'}
-                    </span>
-                  </label>
                 </td>
                 <td className="py-3 px-4 text-sm text-gray-500">
                   {new Date(user.created_at).toLocaleDateString('zh-CN')}

@@ -19,7 +19,6 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     name: Optional[str] = None
     avatar_url: Optional[str] = None
-    ai_enabled: Optional[bool] = None  # AI助手权限开关
 
 
 class UserResponse(BaseModel):
@@ -28,7 +27,6 @@ class UserResponse(BaseModel):
     name: str
     role: UserRole
     is_active: bool
-    ai_enabled: bool = False  # AI助手使用权限
     created_at: datetime
 
     class Config:

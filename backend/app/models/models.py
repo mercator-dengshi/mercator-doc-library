@@ -24,7 +24,6 @@ class User(Base):
     role = Column(SQLEnum(UserRole), default=UserRole.VIEWER, nullable=False)
     is_active = Column(Boolean, default=True)
     email_verified = Column(Boolean, default=False)
-    ai_enabled = Column(Boolean, default=False)  # AI助手使用权限
     last_login_at = Column(DateTime(timezone=True))
     custom_metadata = Column(JSONB, default=dict)  # Store verification codes and other metadata
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)

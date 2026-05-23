@@ -8,7 +8,6 @@ import CategoryManager from '@/components/CategoryManager';
 import RecycleBin from '@/components/RecycleBin';
 import UserManager from '@/components/UserManager';
 import EmailConfig from '@/components/admin/EmailConfig';
-import AIConfig from '@/components/admin/AIConfig';
 import DocumentManager from '@/components/admin/DocumentManager';
 import APIKeyManager from '@/components/admin/APIKeyManager';
 import { 
@@ -18,14 +17,13 @@ import {
   Users, 
   Settings,
   Mail,
-  Bot,
   Key,
   Trash2,
   TrendingUp,
   Activity
 } from 'lucide-react';
 
-type Tab = 'dashboard' | 'documents' | 'categories' | 'users' | 'recycle-bin' | 'email-config' | 'ai-config' | 'api-keys';
+type Tab = 'dashboard' | 'documents' | 'categories' | 'users' | 'recycle-bin' | 'email-config' | 'api-keys';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -67,7 +65,6 @@ export default function AdminPage() {
     ...(isAdmin ? [{ id: 'users' as Tab, label: '用户管理', icon: Users, description: '管理用户和权限' }] : []),
     { id: 'recycle-bin', label: '回收站', icon: Trash2, description: '恢复或删除文档' },
     { id: 'email-config', label: '邮件配置', icon: Mail, description: 'SMTP服务器设置' },
-    { id: 'ai-config', label: 'AI配置', icon: Bot, description: '大模型API配置' },
     { id: 'api-keys', label: 'API密钥', icon: Key, description: '管理外部智能体API密钥' },
   ];
 
@@ -127,7 +124,6 @@ export default function AdminPage() {
             {activeTab === 'users' && isAdmin && <UserManager />}
             {activeTab === 'recycle-bin' && <RecycleBin />}
             {activeTab === 'email-config' && <EmailConfig />}
-            {activeTab === 'ai-config' && <AIConfig />}
             {activeTab === 'api-keys' && <APIKeyManager />}
           </div>
         </div>

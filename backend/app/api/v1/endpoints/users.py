@@ -84,21 +84,3 @@ def delete_user(
     db.commit()
     
     return None
-
-@router.put("/{user_id}/ai-permission", response_model=UserResponse)
-def update_user_ai_permission(
-    user_id: UUID,
-    ai_enabled: bool,
-    current_user: User = Depends(get_current_active_admin),
-    db: Session = Depends(get_db)
-):
-    """Update user AI assistant permission (admin only)"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    user.ai_enabled = ai_enabled
-    db.commit()
-    db.refresh(user)
-    
-    return user

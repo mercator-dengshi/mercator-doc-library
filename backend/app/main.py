@@ -37,28 +37,9 @@ def create_application() -> FastAPI:
             Base.metadata.create_all(bind=engine)
             logger.info("✅ 数据库表结构检查完成")
             
-            # 检查并添加ai_enabled字段
+            # 修改documents.author_id允许NULL
             from sqlalchemy import text
             with engine.connect() as conn:
-                # 1. 检查并添加ai_enabled字段
-                result = conn.execute(text("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name='users' AND column_name='ai_enabled'
-                """))
-                
-                if not result.fetchone():
-                    logger.info("添加ai_enabled字段...")
-                    conn.execute(text("""
-                        ALTER TABLE users 
-                        ADD COLUMN ai_enabled BOOLEAN NOT NULL DEFAULT FALSE
-                    """))
-                    conn.commit()
-                    logger.info("✅ 成功添加ai_enabled字段")
-                else:
-                    logger.info("✅ ai_enabled字段已存在")
-                
-                # 2. 修改documents.author_id允许NULL
                 result = conn.execute(text("""
                     SELECT is_nullable 
                     FROM information_schema.columns 
@@ -90,7 +71,6 @@ def create_application() -> FastAPI:
                     logger.info("✅ author_id已经允许NULL")
         except Exception as e:
             logger.error(f"⚠️ 数据库迁移失败: {str(e)}")
-            logger.error("请手动执行: ALTER TABLE users ADD COLUMN ai_enabled BOOLEAN NOT NULL DEFAULT FALSE;")
 
     return application
 

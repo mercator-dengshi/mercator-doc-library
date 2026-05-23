@@ -6,7 +6,6 @@ interface User {
   email: string;
   name: string;
   role: 'admin' | 'editor' | 'viewer';
-  ai_enabled?: boolean; // AI助手使用权限
 }
 
 interface AuthState {

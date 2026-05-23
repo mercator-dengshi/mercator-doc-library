@@ -375,9 +375,11 @@ def send_password_reset_email(email: str, code: int):
         
         # Priority: from_email config > smtp_user
         actual_from_email = from_email if from_email else smtp_user
-        actual_from_name = from_name if from_name else "Mercator文档库"
         
-        # Format: "Name <email>"
+        # Use English name to avoid MIME encoding issues with Outlook
+        actual_from_name = "Mercator Doc Library"
+        
+        # Format: "Name <email>" - avoid Chinese characters in From header
         if actual_from_email:
             msg['From'] = f"{actual_from_name} <{actual_from_email}>"
         else:

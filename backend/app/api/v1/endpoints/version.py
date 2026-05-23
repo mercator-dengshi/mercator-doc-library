@@ -16,10 +16,10 @@ def load_version_info():
     """
     try:
         # version.json位于 backend/app/version.json
-        version_file = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            'version.json'
-        )
+        # __file__ = .../backend/app/api/v1/endpoints/version.py
+        # 需要向上4层: endpoints -> v1 -> api -> app
+        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        version_file = os.path.join(app_dir, 'version.json')
         
         if os.path.exists(version_file):
             with open(version_file, 'r', encoding='utf-8') as f:

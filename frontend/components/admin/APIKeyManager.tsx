@@ -37,7 +37,7 @@ export default function APIKeyManager() {
     }
   });
 
-  // 创建智能体
+  // 创建API密钥
   const createMutation = useMutation({
     mutationFn: async (data: { name: string; description: string }) => {
       const response = await apiClient.post('/agents/', {
@@ -98,7 +98,7 @@ export default function APIKeyManager() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">API密钥管理</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            管理外部AI智能体的API密钥，如OpenClaw、Cursor等
+            为外部工具(如OpenClaw、Cursor等)创建和管理API密钥
           </p>
         </div>
         <button
@@ -106,7 +106,7 @@ export default function APIKeyManager() {
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus size={20} />
-          创建智能体
+          创建API密钥
         </button>
       </div>
 
@@ -198,18 +198,18 @@ export default function APIKeyManager() {
             <Bot size={48} className="mx-auto text-gray-400 mb-4" />
             <p className="text-gray-600 dark:text-gray-400">暂无API密钥</p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-              点击&quot;创建智能体&quot;开始使用
+              点击&quot;创建API密钥&quot;开始使用
             </p>
           </div>
         )}
       </div>
 
-      {/* 创建智能体模态框 */}
+      {/* 创建API密钥模态框 */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              创建AI智能体
+              创建API密钥
             </h3>
             
             <div className="space-y-4">

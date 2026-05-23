@@ -12,7 +12,16 @@ router = APIRouter()
 
 
 @router.post("/", response_model=AIAgentResponse, status_code=status.HTTP_201_CREATED)
-def create_agent(agent_data: AIAgentCreate, db: Session = Depends(get_db)):
+def create_agent(
+    agent_data: AIAgentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    ✅ 创建API密钥
+    
+    为当前用户创建一个新的API密钥，用于外部工具调用文档API
+    """
     # Generate API key
     api_key = f"sk-live-{secrets.token_urlsafe(32)}"
     api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
@@ -24,7 +33,8 @@ def create_agent(agent_data: AIAgentCreate, db: Session = Depends(get_db)):
         description=agent_data.description,
         api_key_hash=api_key_hash,
         api_key_prefix=api_key_prefix,
-        permissions=agent_data.permissions.dict()
+        permissions=agent_data.permissions.dict(),
+        owner_id=current_user.id  # ✅ 设置所有者
     )
     
     db.add(new_agent)

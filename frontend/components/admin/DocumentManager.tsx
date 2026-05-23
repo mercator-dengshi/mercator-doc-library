@@ -58,20 +58,22 @@ export default function DocumentManager() {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700">
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">标题</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">状态</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">公开</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">更新时间</th>
-              <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">操作</th>
+            <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-2/5">标题</th>
+              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-1/6">状态</th>
+              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-1/12">公开</th>
+              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-1/6">更新时间</th>
+              <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-1/6">操作</th>
             </tr>
           </thead>
           <tbody>
             {documents?.map((doc: any) => (
-              <tr key={doc.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                <td className="py-3 px-4">
-                  <div className="font-medium text-gray-900 dark:text-white">{doc.title}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{doc.slug}</div>
+              <tr key={doc.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors">
+                <td className="py-4 px-4">
+                  <div className="font-medium text-gray-900 dark:text-white truncate max-w-xs" title={doc.title}>
+                    {doc.title}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">{doc.slug}</div>
                 </td>
                 <td className="py-3 px-4">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

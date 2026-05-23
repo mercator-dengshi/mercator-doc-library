@@ -255,7 +255,7 @@ async function deleteDocument(docId) {
               所有API请求必须在Header中包含 <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded">X-API-Key: YOUR_API_KEY</code>
             </p>
             <p className="text-xs text-blue-700 dark:text-blue-500">
-              💡 提示: 在上方"API密钥"标签页中创建智能体获取API密钥
+              💡 提示: 在上方"API密钥"标签页中创建API密钥
             </p>
           </div>
         </div>

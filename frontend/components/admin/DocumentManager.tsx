@@ -59,40 +59,53 @@ export default function DocumentManager() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-2/5">标题</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-1/6">状态</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-1/12">公开</th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-1/6">更新时间</th>
-              <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-1/6">操作</th>
+              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-[45%]">标题</th>
+              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-[15%]">状态</th>
+              <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-[10%]">公开</th>
+              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-[15%]">更新时间</th>
+              <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-[15%]">操作</th>
             </tr>
           </thead>
           <tbody>
             {documents?.map((doc: any) => (
-              <tr key={doc.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors">
-                <td className="py-4 px-4">
-                  <div className="font-medium text-gray-900 dark:text-white truncate max-w-xs" title={doc.title}>
-                    {doc.title}
+              <tr key={doc.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
+                <td className="py-3 px-4">
+                  <div className="flex items-start gap-3">
+                    <FileText className="text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" size={16} />
+                    <div className="min-w-0 flex-1">
+                      <Link 
+                        href={`/docs/${doc.slug}`}
+                        className="font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors line-clamp-1"
+                        title={doc.title}
+                      >
+                        {doc.title}
+                      </Link>
+                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 font-mono">/{doc.slug}</div>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">{doc.slug}</div>
                 </td>
                 <td className="py-3 px-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
                     doc.status === 'published' 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800'
                       : doc.status === 'draft'
-                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+                      ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800'
+                      : 'bg-gray-50 text-gray-700 dark:bg-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-600'
                   }`}>
                     {doc.status === 'published' ? '已发布' : doc.status === 'draft' ? '草稿' : '已归档'}
                   </span>
                 </td>
-                <td className="py-3 px-4">
-                  <span className={`text-xs ${doc.is_public ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {doc.is_public ? '是' : '否'}
+                <td className="py-3 px-4 text-center">
+                  <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs ${
+                    doc.is_public 
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                      : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                  }`}>
+                    {doc.is_public ? '✓' : '—'}
                   </span>
                 </td>
-                <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
-                  {new Date(doc.updated_at).toLocaleDateString('zh-CN')}
+                <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  {new Date(doc.updated_at).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}
                 </td>
                 <td className="py-3 px-4 text-right">
                   <div className="flex items-center justify-end gap-2">

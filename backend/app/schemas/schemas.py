@@ -215,10 +215,13 @@ class AIAgentResponse(BaseModel):
     name: str
     description: Optional[str] = None
     api_key: Optional[str] = None  # Only shown once on creation
+    api_key_prefix: str
     permissions: AIAgentPermissions
     status: AIAgentStatus
     total_edits: int = 0
     created_at: datetime
+    last_active_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

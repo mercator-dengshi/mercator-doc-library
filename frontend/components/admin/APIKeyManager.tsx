@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
-import { Bot, Key, Trash2, RefreshCw, Plus, Copy, CheckCircle } from 'lucide-react';
+import { Key, Trash2, RefreshCw, Plus, Copy, CheckCircle, Shield } from 'lucide-react';
 
 interface AIAgent {
   id: string;
@@ -115,53 +115,69 @@ export default function APIKeyManager() {
         {agents && agents.length > 0 ? (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {agents.map((agent: AIAgent) => (
-              <div key={agent.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Bot className="text-blue-600" size={24} />
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {agent.name}
-                      </h3>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        agent.status === 'active' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
-                      }`}>
-                        {agent.status}
-                      </span>
+              <div key={agent.id} className="p-6 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                        <Key className="text-blue-600 dark:text-blue-400" size={20} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+                            {agent.name}
+                          </h3>
+                          <span className={`px-2 py-0.5 text-xs rounded-full flex-shrink-0 ${
+                            agent.status === 'active' 
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                          }`}>
+                            {agent.status}
+                          </span>
+                        </div>
+                        {agent.description && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-1">
+                            {agent.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    
-                    {agent.description && (
-                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-                        {agent.description}
-                      </p>
-                    )}
 
-                    <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <Key size={14} />
-                        <span className="font-mono">{agent.api_key_prefix}</span>
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-md">
+                        <Key size={14} className="text-gray-500 dark:text-gray-400" />
+                        <span className="font-mono text-gray-700 dark:text-gray-300">{agent.api_key_prefix}</span>
                       </div>
                       {agent.last_active_at && (
-                        <span>最后活跃: {new Date(agent.last_active_at).toLocaleString('zh-CN')}</span>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          最后活跃: {new Date(agent.last_active_at).toLocaleString('zh-CN')}
+                        </span>
                       )}
                     </div>
 
                     {/* 权限标签 */}
-                    <div className="flex gap-2 mt-3">
+                    <div className="flex flex-wrap gap-2 mt-3">
                       {agent.permissions.create_documents && (
-                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-md border border-blue-200 dark:border-blue-800">
+                          <Shield size={12} />
                           创建文档
                         </span>
                       )}
                       {agent.permissions.update_documents && (
-                        <span className="px-2 py-1 text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-md border border-green-200 dark:border-green-800">
+                          <Shield size={12} />
                           更新文档
                         </span>
                       )}
+                      {agent.permissions.read_documents && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 rounded-md border border-purple-200 dark:border-purple-800">
+                          <Shield size={12} />
+                          读取文档
+                        </span>
+                      )}
                       {agent.permissions.delete_documents && (
-                        <span className="px-2 py-1 text-xs bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 rounded">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-md border border-red-200 dark:border-red-800">
+                          <Shield size={12} />
                           删除文档
                         </span>
                       )}
@@ -169,7 +185,7 @@ export default function APIKeyManager() {
                   </div>
 
                   {/* 操作按钮 */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-shrink-0">
                     <button
                       onClick={() => resetKeyMutation.mutate(agent.id)}
                       className="p-2 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
@@ -179,12 +195,12 @@ export default function APIKeyManager() {
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm('确定要删除这个智能体吗？此操作不可恢复！')) {
+                        if (confirm('确定要删除这个API密钥吗？此操作不可恢复！')) {
                           deleteMutation.mutate(agent.id);
                         }
                       }}
                       className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                      title="删除智能体"
+                      title="删除API密钥"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -194,11 +210,13 @@ export default function APIKeyManager() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <Bot size={48} className="mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">暂无API密钥</p>
+          <div className="text-center py-16">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700">
+              <Key size={32} className="text-gray-400 dark:text-gray-500" />
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 font-medium">暂无API密钥</p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-              点击&quot;创建API密钥&quot;开始使用
+              点击“创建API密钥”开始使用
             </p>
           </div>
         )}

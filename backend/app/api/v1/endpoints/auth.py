@@ -154,14 +154,18 @@ def forgot_password(
     from datetime import timedelta
     expiry_time = datetime.now(timezone.utc) + timedelta(minutes=15)
     
-    # In production, you should use Redis or a dedicated table for verification codes
-    # For now, we'll store it in user's custom_metadata
+    # ️ IMPORTANT: SQLAlchemy JSONB fields require creating a new dict object
+    # to trigger change detection. Direct modification won't work!
     old_metadata = user.custom_metadata.copy() if user.custom_metadata else {}
     print(f"[FORGOT_PASSWORD] Old metadata: {old_metadata}")
     
-    user.custom_metadata = user.custom_metadata or {}
-    user.custom_metadata['password_reset_code'] = str(verification_code)
-    user.custom_metadata['password_reset_expiry'] = expiry_time.isoformat()
+    # Create a NEW dictionary (not modify in place)
+    new_metadata = dict(old_metadata)  # Copy existing metadata
+    new_metadata['password_reset_code'] = str(verification_code)
+    new_metadata['password_reset_expiry'] = expiry_time.isoformat()
+    
+    # Assign the new dict to trigger SQLAlchemy change detection
+    user.custom_metadata = new_metadata
     db.commit()
     db.refresh(user)  # Refresh to ensure we have the latest data
     print(f"[FORGOT_PASSWORD] Saved to DB - Code: {user.custom_metadata['password_reset_code']}, Expiry: {user.custom_metadata['password_reset_expiry']}")

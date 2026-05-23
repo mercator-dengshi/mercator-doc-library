@@ -1,0 +1,17 @@
+{
+  "latest_version": "v0.8.2-fix-api-key-management",
+  "release_date": "2026-05-23",
+  "changelog": [
+    {
+      "version": "v0.8.2-fix-api-key-management",
+      "date": "2026-05-23",
+      "description": "Fix Api Key Management",
+      "commits": [
+        "7ffe8bd ✅ 修复API密钥管理权限问题",
+        "09b2104 ✅ 调试API密钥列表显示问题",
+        "3e8d37a ✅ 将标题' Mercator 文档库'改为英文"
+      ]
+    }
+  ],
+  "generated_at": "2026-05-23T03:37:39.890159"
+}

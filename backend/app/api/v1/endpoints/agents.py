@@ -54,15 +54,19 @@ def list_agents(
     current_user: User = Depends(get_current_user)
 ):
     """
-    ✅ 列出当前用户的所有AI智能体
+    ✅ 列出所有AI智能体(API密钥)
     
-    返回该用户创建的所有智能体列表
+    仅管理员可查看所有密钥，普通用户只能查看自己创建的
     """
-    agents = db.query(AIAgent).filter(
-        AIAgent.owner_id == current_user.id
-    ).order_by(AIAgent.created_at.desc()).all()
+    # 管理员可以查看所有密钥，普通用户只能看自己的
+    if current_user.role == "admin":
+        agents = db.query(AIAgent).order_by(AIAgent.created_at.desc()).all()
+    else:
+        agents = db.query(AIAgent).filter(
+            AIAgent.owner_id == current_user.id
+        ).order_by(AIAgent.created_at.desc()).all()
     
-    print(f" [DEBUG] Listing agents for user {current_user.id}: found {len(agents)} agents")
+    print(f" [DEBUG] Listing agents for user {current_user.id} (role={current_user.role}): found {len(agents)} agents")
     for agent in agents:
         print(f"  - Agent: {agent.name}, id={agent.id}, owner_id={agent.owner_id}")
     
@@ -74,12 +78,16 @@ def get_agent(agent_id: str, db: Session = Depends(get_db), current_user: User =
     """
     ✅ 获取智能体详情
     
-    只能查看自己创建的智能体
+    管理员可以查看任何智能体，普通用户只能查看自己创建的
     """
-    agent = db.query(AIAgent).filter(
-        AIAgent.id == agent_id,
-        AIAgent.owner_id == current_user.id
-    ).first()
+    # 管理员可以查看任何智能体，普通用户只能看自己的
+    if current_user.role == "admin":
+        agent = db.query(AIAgent).filter(AIAgent.id == agent_id).first()
+    else:
+        agent = db.query(AIAgent).filter(
+            AIAgent.id == agent_id,
+            AIAgent.owner_id == current_user.id
+        ).first()
     
     if not agent:
         raise HTTPException(
@@ -100,12 +108,16 @@ def update_agent(
     """
     ✅ 更新智能体配置
     
-    可以修改名称、描述、权限等
+    管理员可以更新任何智能体，普通用户只能更新自己创建的
     """
-    agent = db.query(AIAgent).filter(
-        AIAgent.id == agent_id,
-        AIAgent.owner_id == current_user.id
-    ).first()
+    # 管理员可以更新任何智能体，普通用户只能更新自己的
+    if current_user.role == "admin":
+        agent = db.query(AIAgent).filter(AIAgent.id == agent_id).first()
+    else:
+        agent = db.query(AIAgent).filter(
+            AIAgent.id == agent_id,
+            AIAgent.owner_id == current_user.id
+        ).first()
     
     if not agent:
         raise HTTPException(
@@ -134,11 +146,16 @@ def delete_agent(
     ✅ 删除智能体
     
     ⚠️ 删除后API密钥将永久失效
+    管理员可以删除任何智能体，普通用户只能删除自己创建的
     """
-    agent = db.query(AIAgent).filter(
-        AIAgent.id == agent_id,
-        AIAgent.owner_id == current_user.id
-    ).first()
+    # 管理员可以删除任何智能体，普通用户只能删除自己的
+    if current_user.role == "admin":
+        agent = db.query(AIAgent).filter(AIAgent.id == agent_id).first()
+    else:
+        agent = db.query(AIAgent).filter(
+            AIAgent.id == agent_id,
+            AIAgent.owner_id == current_user.id
+        ).first()
     
     if not agent:
         raise HTTPException(
@@ -162,11 +179,16 @@ def reset_api_key(
     ✅ 重置API密钥
     
     ⚠️ 旧密钥立即失效，新密钥仅显示一次
+    管理员可以重置任何智能体的密钥，普通用户只能重置自己创建的
     """
-    agent = db.query(AIAgent).filter(
-        AIAgent.id == agent_id,
-        AIAgent.owner_id == current_user.id
-    ).first()
+    # 管理员可以重置任何智能体，普通用户只能重置自己的
+    if current_user.role == "admin":
+        agent = db.query(AIAgent).filter(AIAgent.id == agent_id).first()
+    else:
+        agent = db.query(AIAgent).filter(
+            AIAgent.id == agent_id,
+            AIAgent.owner_id == current_user.id
+        ).first()
     
     if not agent:
         raise HTTPException(

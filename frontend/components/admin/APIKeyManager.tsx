@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import { Key, Trash2, RefreshCw, Plus, Copy, CheckCircle, Shield } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface AIAgent {
   id: string;
@@ -34,6 +35,7 @@ export default function APIKeyManager() {
     queryFn: async () => {
       const response = await apiClient.get('/agents/');
       console.log('API agents response:', response.data);
+      console.log('Current user from store:', useAuthStore.getState().user);
       return response.data;
     }
   });

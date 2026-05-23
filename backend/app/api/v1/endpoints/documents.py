@@ -110,14 +110,29 @@ def list_trashed_documents(
 
 @router.post("/trash/clear", status_code=status.HTTP_204_NO_CONTENT)
 def clear_trash(
-    current_user: User = Depends(get_current_user),
+    editor = Depends(get_editor_from_api_key_or_token),
     db: Session = Depends(get_db)
 ):
-    """Clear all trashed documents (admin only, permanent delete)"""
-    if current_user.role.value != "admin":
+    """
+    ✅ 清空回收站(仅管理员)
+    
+    支持两种认证方式:
+    - JWT Token (人类用户): Authorization: Bearer xxx
+    - API Key (外部智能体): X-API-Key: sk-live-xxx
+    """
+    # Admin only check
+    if editor['type'] == 'user':
+        user = editor['obj']
+        if user.role.value != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only admins can clear trash"
+            )
+    else:
+        # Agents cannot clear trash
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can clear trash"
+            detail="AI agents cannot clear trash"
         )
     
     trashed_docs = db.query(Document).filter(Document.deleted_at.isnot(None)).all()
@@ -330,10 +345,16 @@ def delete_document(
 @router.post("/{doc_id}/restore", response_model=DocumentResponse)
 def restore_document(
     doc_id: UUID,
-    current_user: User = Depends(get_current_active_editor),
+    editor = Depends(get_editor_from_api_key_or_token),
     db: Session = Depends(get_db)
 ):
-    """Restore a soft-deleted document"""
+    """
+    ✅ 恢复已删除的文档
+    
+    支持两种认证方式:
+    - JWT Token (人类用户): Authorization: Bearer xxx
+    - API Key (外部智能体): X-API-Key: sk-live-xxx
+    """
     document = db.query(Document).filter(
         Document.id == doc_id,
         Document.deleted_at.isnot(None)
@@ -346,11 +367,13 @@ def restore_document(
         )
     
     # Permission check
-    if current_user.role.value == "editor" and document.author_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only restore your own documents"
-        )
+    if editor['type'] == 'user':
+        user = editor['obj']
+        if user.role.value == "editor" and document.author_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only restore your own documents"
+            )
     
     # Restore
     document.deleted_at = None
@@ -364,15 +387,29 @@ def restore_document(
 @router.delete("/{doc_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
 def permanent_delete_document(
     doc_id: UUID,
-    current_user: User = Depends(get_current_user),
+    editor = Depends(get_editor_from_api_key_or_token),
     db: Session = Depends(get_db)
 ):
-    """Permanently delete a document (admin only)"""
-    # Admin only
-    if current_user.role.value != "admin":
+    """
+    ✅ 永久删除文档(仅管理员)
+    
+    支持两种认证方式:
+    - JWT Token (人类用户): Authorization: Bearer xxx
+    - API Key (外部智能体): X-API-Key: sk-live-xxx
+    """
+    # Admin only check
+    if editor['type'] == 'user':
+        user = editor['obj']
+        if user.role.value != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only admins can permanently delete documents"
+            )
+    else:
+        # Agents cannot permanently delete
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can permanently delete documents"
+            detail="AI agents cannot permanently delete documents"
         )
     
     document = db.query(Document).filter(Document.id == doc_id).first()

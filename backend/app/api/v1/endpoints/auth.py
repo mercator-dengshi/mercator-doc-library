@@ -134,10 +134,16 @@ def forgot_password(
     """
     请求重置密码（发送验证码到邮箱）
     """
+    print(f"\n{'='*80}")
+    print(f"[FORGOT_PASSWORD] {'='*80}")
+    print(f"[FORGOT_PASSWORD] Request received at: {datetime.now(timezone.utc).isoformat()}")
+    print(f"[FORGOT_PASSWORD] Email: {request.email}")
+    
     # Find user by email
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
         # Don't reveal if email exists or not for security
+        print(f"[FORGOT_PASSWORD] User not found (security: returning success anyway)")
         return {"message": "If the email exists, a verification code has been sent"}
     
     # Generate verification code (6 digits)
@@ -150,11 +156,20 @@ def forgot_password(
     
     # In production, you should use Redis or a dedicated table for verification codes
     # For now, we'll store it in user's custom_metadata
+    old_metadata = user.custom_metadata.copy() if user.custom_metadata else {}
+    print(f"[FORGOT_PASSWORD] Old metadata: {old_metadata}")
+    
     user.custom_metadata = user.custom_metadata or {}
     user.custom_metadata['password_reset_code'] = str(verification_code)
     user.custom_metadata['password_reset_expiry'] = expiry_time.isoformat()
     db.commit()
+    db.refresh(user)  # Refresh to ensure we have the latest data
     print(f"[FORGOT_PASSWORD] Saved to DB - Code: {user.custom_metadata['password_reset_code']}, Expiry: {user.custom_metadata['password_reset_expiry']}")
+    
+    # Verify immediately after commit
+    user_check = db.query(User).filter(User.email == request.email).first()
+    check_metadata = user_check.custom_metadata or {}
+    print(f"[FORGOT_PASSWORD] Verification read-back - Code: {check_metadata.get('password_reset_code')}, Expiry: {check_metadata.get('password_reset_expiry')}")
     
     # Send email with verification code
     try:
@@ -195,6 +210,10 @@ def reset_password(
     """
     使用验证码重置密码
     """
+    print(f"\n{'='*80}")
+    print(f"[RESET_PASSWORD] {'='*80}")
+    print(f"[RESET_PASSWORD] Request received at: {datetime.now(timezone.utc).isoformat()}")
+    
     # Find user by email
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
@@ -205,6 +224,8 @@ def reset_password(
         )
     
     # Verify the code
+    # First, refresh the user to get the latest data from database
+    db.refresh(user)
     metadata = user.custom_metadata or {}
     stored_code = metadata.get('password_reset_code')
     expiry_str = metadata.get('password_reset_expiry')
@@ -213,6 +234,7 @@ def reset_password(
     print(f"[RESET_PASSWORD] Received code: {request.verification_code}")
     print(f"[RESET_PASSWORD] Stored code: {stored_code}")
     print(f"[RESET_PASSWORD] Expiry: {expiry_str}")
+    print(f"[RESET_PASSWORD] Full metadata: {metadata}")
     
     if not stored_code or not expiry_str:
         print(f"[RESET_PASSWORD] No pending password reset request")

@@ -365,7 +365,8 @@ def send_password_reset_email(email: str, code: int):
     
     # Build email message
     try:
-        msg = MIMEMultipart()
+        # Use multipart/alternative for HTML + plain text
+        msg = MIMEMultipart('alternative')
         
         # ✅ 确保 From 字段格式正确
         print(f"[EMAIL DEBUG] Raw from_email: {from_email}")
@@ -385,31 +386,13 @@ def send_password_reset_email(email: str, code: int):
         
         msg['To'] = email
         msg['Subject'] = '密码重置验证码 - Mercator文档库'
-        msg['Reply-To'] = actual_from_email  # Add Reply-To header
+        msg['Return-Path'] = actual_from_email  # Add Return-Path for bounce handling
         
         print(f"[EMAIL DEBUG] Headers created successfully")
+        print(f"[EMAIL DEBUG] From header: {msg['From']}")
+        print(f"[EMAIL DEBUG] Return-Path: {msg['Return-Path']}")
         
-        # Build HTML and plain text versions
-        html_body = f"""<html>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #2563eb;">密码重置验证码</h2>
-        <p>您好，</p>
-        <p>您正在请求重置 Mercator 文档库的密码。</p>
-        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
-            <h1 style="margin: 0; color: #2563eb; font-size: 32px; letter-spacing: 5px;">{code}</h1>
-        </div>
-        <p>此验证码将在 <strong>15分钟</strong> 后过期。</p>
-        <p style="color: #6b7280; font-size: 14px;">如果您没有请求重置密码，请忽略此邮件。</p>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-        <p style="color: #6b7280; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
-        <p style="color: #6b7280; font-size: 12px;">Mercator 文档库团队</p>
-    </div>
-</body>
-</html>"""
-        
-        print(f"[EMAIL DEBUG] HTML body created successfully")
-        
+        # Build plain text version FIRST (should be first in multipart/alternative)
         plain_body = f"""您好，
 
 您正在请求重置 Mercator 文档库的密码。
@@ -423,12 +406,39 @@ def send_password_reset_email(email: str, code: int):
 祝好，
 Mercator 文档库团队"""
         
-        print(f"[EMAIL DEBUG] Plain body created successfully")
+        plain_part = MIMEText(plain_body, 'plain', 'utf-8')
+        msg.attach(plain_part)
         
-        # Attach both HTML and plain text versions
-        msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
-        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+        print(f"[EMAIL DEBUG] Plain text part attached")
         
+        # Build HTML version SECOND (should be last in multipart/alternative)
+        html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f9fafb; margin: 0; padding: 20px;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 style="color: #2563eb; margin-top: 0;">密码重置验证码</h2>
+        <p>您好，</p>
+        <p>您正在请求重置 Mercator 文档库的密码。</p>
+        <div style="background-color: #eff6ff; padding: 20px; border-radius: 6px; margin: 25px 0; text-align: center; border: 2px solid #2563eb;">
+            <h1 style="margin: 0; color: #2563eb; font-size: 36px; letter-spacing: 8px; font-weight: bold;">{code}</h1>
+        </div>
+        <p>此验证码将在 <strong>15分钟</strong> 后过期。</p>
+        <p style="color: #6b7280; font-size: 14px;">如果您没有请求重置密码，请忽略此邮件。</p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;">
+        <p style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">此邮件由系统自动发送，请勿回复。</p>
+        <p style="color: #9ca3af; font-size: 12px; margin-top: 0;">Mercator 文档库团队</p>
+    </div>
+</body>
+</html>"""
+        
+        html_part = MIMEText(html_body, 'html', 'utf-8')
+        msg.attach(html_part)
+        
+        print(f"[EMAIL DEBUG] HTML part attached")
         print(f"[EMAIL DEBUG] Message assembled successfully")
         
     except Exception as e:

@@ -210,9 +210,16 @@ def create_document(
 def update_document(
     doc_id: UUID,
     doc_data: DocumentUpdate,
-    current_user: User = Depends(get_current_active_editor),
+    editor = Depends(get_editor_from_api_key_or_token),
     db: Session = Depends(get_db)
 ):
+    """
+    ✅ 更新文档
+    
+    支持两种认证方式:
+    - JWT Token (人类用户): Authorization: Bearer xxx
+    - API Key (外部智能体): X-API-Key: sk-live-xxx
+    """
     document = db.query(Document).filter(
         Document.id == doc_id,
         Document.deleted_at.is_(None)
@@ -224,12 +231,20 @@ def update_document(
             detail="Document not found"
         )
     
-    # Permission check: admin can edit any, editor can only edit own
-    if current_user.role.value == "editor" and document.author_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only edit your own documents"
-        )
+    # Determine editor type and ID
+    editor_id = editor['id']
+    editor_type = EditorType.AI if editor['type'] == 'agent' else EditorType.HUMAN
+    
+    # Permission check
+    if editor['type'] == 'user':
+        # Human user: admin can edit any, editor can only edit own
+        user = editor['obj']
+        if user.role.value == "editor" and document.author_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only edit your own documents"
+            )
+    # For agents, we could add permission checks based on agent.permissions
     
     # Check if document is archived
     if document.status == DocumentStatus.ARCHIVED:
@@ -255,8 +270,8 @@ def update_document(
         document.custom_metadata = doc_data.metadata
     
     # Update editor info
-    document.last_editor_id = current_user.id
-    document.last_editor_type = EditorType.HUMAN
+    document.last_editor_id = editor_id
+    document.last_editor_type = editor_type
     
     # Increment version
     document.version += 1
@@ -271,10 +286,16 @@ def update_document(
 @router.delete("/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_document(
     doc_id: UUID,
-    current_user: User = Depends(get_current_active_editor),
+    editor = Depends(get_editor_from_api_key_or_token),
     db: Session = Depends(get_db)
 ):
-    """Soft delete a document (move to trash)"""
+    """
+    ✅ 软删除文档(移入回收站)
+    
+    支持两种认证方式:
+    - JWT Token (人类用户): Authorization: Bearer xxx
+    - API Key (外部智能体): X-API-Key: sk-live-xxx
+    """
     document = db.query(Document).filter(
         Document.id == doc_id,
         Document.deleted_at.is_(None)
@@ -286,14 +307,17 @@ def delete_document(
             detail="Document not found"
         )
     
-    # Permission check: admin can delete any, editor can only delete own
-    # If author_id is NULL (user was deleted), allow deletion
-    if current_user.role.value == "editor":
-        if document.author_id is not None and document.author_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only delete your own documents"
-            )
+    # Permission check
+    if editor['type'] == 'user':
+        # Human user: admin can delete any, editor can only delete own
+        user = editor['obj']
+        if user.role.value == "editor":
+            if document.author_id is not None and document.author_id != user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You can only delete your own documents"
+                )
+    # For agents, we could add permission checks based on agent.permissions
     
     # Soft delete
     document.deleted_at = datetime.now(timezone.utc)

@@ -182,28 +182,13 @@ def forgot_password(
         send_password_reset_email(request.email, verification_code)
         print(f"[FORGOT_PASSWORD] Email sent successfully")
         
-        # In development mode (or if ENVIRONMENT not set), also return the code for convenience
-        import os
-        environment = os.getenv("ENVIRONMENT", "development")
-        if environment == "development":
-            return {
-                "message": "Verification code sent to your email",
-                "code": verification_code
-            }
-        
         return {"message": "Verification code sent to your email"}
     except Exception as e:
-        # In development, return the code directly even if email fails
-        import os
-        environment = os.getenv("ENVIRONMENT", "development")
-        if environment == "development":
-            return {
-                "message": f"Development mode - Verification code: {verification_code}",
-                "code": verification_code
-            }
+        # ✅ 生产模式: 邮件发送失败时返回错误
+        print(f"[FORGOT_PASSWORD] Failed to send email: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send verification email"
+            detail=f"Failed to send verification email: {str(e)}"
         )
 
 
@@ -357,11 +342,11 @@ def send_password_reset_email(email: str, code: int):
         from_email = os.getenv("FROM_EMAIL", smtp_user)
         from_name = os.getenv("FROM_NAME", "Mercator文档库")
     
-    # If still no configuration, log and return (development mode)
+    # ✅ 生产模式: SMTP配置必须存在,否则抛出异常
     if not smtp_server or not smtp_user or not smtp_password:
-        print(f"[EMAIL] Password reset code for {email}: {code}")
-        print("[EMAIL] SMTP not configured, running in development mode")
-        return
+        raise Exception(
+            "SMTP configuration is required. Please configure email settings in admin dashboard first."
+        )
     
     # Build email message
     try:

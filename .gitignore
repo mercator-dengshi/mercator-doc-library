@@ -54,6 +54,8 @@ system_config.json
 # Development documentation (exclude from GitHub)
 docs/
 !docs/README.md
+# But keep frontend app docs pages
+!frontend/app/docs/
 
 # Deployment scripts (exclude from GitHub)
 scripts/

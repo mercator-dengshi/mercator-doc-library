@@ -80,6 +80,7 @@ migrate_add_custom_metadata.py
 quality_check_*.sh
 test_*.py
 test_*.sh
+test_api_document_creation.py  # API测试脚本
 
 # Temporary documents (exclude from GitHub)
 TODAY_SUMMARY.md
@@ -97,6 +98,7 @@ CONFIG_MIGRATION_TO_DATABASE.md
 SECURITY_CLEANUP_REPORT.md
 SAFETY_SUMMARY.md
 SECURITY_AUDIT_REPORT.md
+VERSION_MANAGEMENT.md  # 版本管理文档
 
 # Publishing tools
 publish_*.py

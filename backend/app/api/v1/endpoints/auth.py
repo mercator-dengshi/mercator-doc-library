@@ -142,6 +142,7 @@ def forgot_password(
     
     # Generate verification code (6 digits)
     verification_code = secrets.randbelow(900000) + 100000
+    print(f"[FORGOT_PASSWORD] Generated code: {verification_code}")
     
     # Store verification code in user metadata with expiration (15 minutes)
     from datetime import timedelta
@@ -153,10 +154,13 @@ def forgot_password(
     user.custom_metadata['password_reset_code'] = str(verification_code)
     user.custom_metadata['password_reset_expiry'] = expiry_time.isoformat()
     db.commit()
+    print(f"[FORGOT_PASSWORD] Saved to DB - Code: {user.custom_metadata['password_reset_code']}, Expiry: {user.custom_metadata['password_reset_expiry']}")
     
     # Send email with verification code
     try:
+        print(f"[FORGOT_PASSWORD] Sending email with code: {verification_code}")
         send_password_reset_email(request.email, verification_code)
+        print(f"[FORGOT_PASSWORD] Email sent successfully")
         
         # In development mode (or if ENVIRONMENT not set), also return the code for convenience
         import os

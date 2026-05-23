@@ -364,57 +364,53 @@ def send_password_reset_email(email: str, code: int):
         return
     
     # Build email message
-    msg = MIMEMultipart()
-    
-    # ✅ 确保 From 字段格式正确
-    print(f"[EMAIL DEBUG] Raw from_email: {from_email}")
-    print(f"[EMAIL DEBUG] Raw from_name: {from_name}")
-    print(f"[EMAIL DEBUG] Raw smtp_user: {smtp_user}")
-    
-    # Priority: from_email config > smtp_user
-    actual_from_email = from_email if from_email else smtp_user
-    actual_from_name = from_name if from_name else "Mercator文档库"
-    
-    # Format: "Name <email>"
-    if actual_from_email:
-        msg['From'] = f"{actual_from_name} <{actual_from_email}>"
-    else:
-        # Absolute fallback
-        msg['From'] = f"{actual_from_name} <noreply@mercator.cn>"
-    
-    msg['To'] = email
-    msg['Subject'] = '密码重置验证码 - Mercator文档库'
-    msg['Reply-To'] = actual_from_email  # Add Reply-To header
-    msg['Date'] = email.utils.formatdate(localtime=True)  # Add Date header
-    
-    print(f"[EMAIL DEBUG] Final From: {msg['From']}")
-    print(f"[EMAIL DEBUG] Reply-To: {msg['Reply-To']}")
-    print(f"[EMAIL DEBUG] To: {msg['To']}")
-    print(f"[EMAIL DEBUG] Subject: {msg['Subject']}")
-    
-    # Build HTML and plain text versions
-    html_body = f"""
-    <html>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #2563eb;">密码重置验证码</h2>
-            <p>您好，</p>
-            <p>您正在请求重置 Mercator 文档库的密码。</p>
-            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
-                <h1 style="margin: 0; color: #2563eb; font-size: 32px; letter-spacing: 5px;">{code}</h1>
-            </div>
-            <p>此验证码将在 <strong>15分钟</strong> 后过期。</p>
-            <p style="color: #6b7280; font-size: 14px;">如果您没有请求重置密码，请忽略此邮件。</p>
-            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-            <p style="color: #6b7280; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
-            <p style="color: #6b7280; font-size: 12px;">Mercator 文档库团队</p>
+    try:
+        msg = MIMEMultipart()
+        
+        # ✅ 确保 From 字段格式正确
+        print(f"[EMAIL DEBUG] Raw from_email: {from_email}")
+        print(f"[EMAIL DEBUG] Raw from_name: {from_name}")
+        print(f"[EMAIL DEBUG] Raw smtp_user: {smtp_user}")
+        
+        # Priority: from_email config > smtp_user
+        actual_from_email = from_email if from_email else smtp_user
+        actual_from_name = from_name if from_name else "Mercator文档库"
+        
+        # Format: "Name <email>"
+        if actual_from_email:
+            msg['From'] = f"{actual_from_name} <{actual_from_email}>"
+        else:
+            # Absolute fallback
+            msg['From'] = f"{actual_from_name} <noreply@mercator.cn>"
+        
+        msg['To'] = email
+        msg['Subject'] = '密码重置验证码 - Mercator文档库'
+        msg['Reply-To'] = actual_from_email  # Add Reply-To header
+        
+        print(f"[EMAIL DEBUG] Headers created successfully")
+        
+        # Build HTML and plain text versions
+        html_body = f"""<html>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2563eb;">密码重置验证码</h2>
+        <p>您好，</p>
+        <p>您正在请求重置 Mercator 文档库的密码。</p>
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
+            <h1 style="margin: 0; color: #2563eb; font-size: 32px; letter-spacing: 5px;">{code}</h1>
         </div>
-    </body>
-    </html>
-    """
-    
-    plain_body = f"""
-您好，
+        <p>此验证码将在 <strong>15分钟</strong> 后过期。</p>
+        <p style="color: #6b7280; font-size: 14px;">如果您没有请求重置密码，请忽略此邮件。</p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+        <p style="color: #6b7280; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
+        <p style="color: #6b7280; font-size: 12px;">Mercator 文档库团队</p>
+    </div>
+</body>
+</html>"""
+        
+        print(f"[EMAIL DEBUG] HTML body created successfully")
+        
+        plain_body = f"""您好，
 
 您正在请求重置 Mercator 文档库的密码。
 
@@ -425,12 +421,21 @@ def send_password_reset_email(email: str, code: int):
 如果您没有请求重置密码，请忽略此邮件。
 
 祝好，
-Mercator 文档库团队
-    """
-    
-    # Attach both HTML and plain text versions
-    msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
-    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+Mercator 文档库团队"""
+        
+        print(f"[EMAIL DEBUG] Plain body created successfully")
+        
+        # Attach both HTML and plain text versions
+        msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+        
+        print(f"[EMAIL DEBUG] Message assembled successfully")
+        
+    except Exception as e:
+        print(f"[EMAIL ERROR] Failed to build email message: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
     
     # Send email
     try:

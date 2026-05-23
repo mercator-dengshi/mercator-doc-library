@@ -1,14 +1,54 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Header
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 from app.core.database import get_db
-from app.core.security import get_current_user, get_current_active_editor
+from app.core.security import get_current_user, get_current_active_editor, get_current_agent
 from app.schemas.schemas import DocumentCreate, DocumentUpdate, DocumentResponse, DocumentListItem
-from app.models.models import Document, User, Category, Tag, DocumentTag, EditorType, DocumentStatus
+from app.models.models import Document, User, Category, Tag, DocumentTag, EditorType, DocumentStatus, AIAgent
 from datetime import datetime, timezone
 
 router = APIRouter()
+
+
+def get_editor_from_api_key_or_token(
+    x_api_key: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    ✅ 从API密钥或JWT Token获取编辑者
+    
+    优先级:
+    1. X-API-Key (外部智能体)
+    2. Authorization Bearer Token (人类用户)
+    
+    Returns: dict with 'type' ('agent' or 'user') and 'id'
+    """
+    # Try API key first
+    if x_api_key:
+        try:
+            from app.core.security import get_current_agent
+            agent = get_current_agent(x_api_key=x_api_key, db=db)
+            return {"type": "agent", "id": agent.id, "obj": agent}
+        except HTTPException:
+            pass
+    
+    # Fallback to JWT token
+    if authorization and authorization.startswith("Bearer "):
+        from app.core.security import security, decode_token
+        token = authorization.replace("Bearer ", "")
+        payload = decode_token(token)
+        if payload:
+            user_id = payload.get("sub")
+            user = db.query(User).filter(User.id == user_id).first()
+            if user and user.is_active:
+                return {"type": "user", "id": user.id, "obj": user}
+    
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required. Use X-API-Key or Authorization header."
+    )
 
 
 @router.get("/", response_model=List[DocumentListItem])
@@ -115,9 +155,16 @@ def get_document(doc_slug: str, db: Session = Depends(get_db)):
 @router.post("/", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 def create_document(
     doc_data: DocumentCreate,
-    current_user: User = Depends(get_current_active_editor),
+    editor = Depends(get_editor_from_api_key_or_token),
     db: Session = Depends(get_db)
 ):
+    """
+    ✅ 创建文档
+    
+    支持两种认证方式:
+    - JWT Token (人类用户): Authorization: Bearer xxx
+    - API Key (外部智能体): X-API-Key: sk-live-xxx
+    """
     # Check if slug already exists
     existing = db.query(Document).filter(Document.slug == doc_data.slug).first()
     if existing:
@@ -126,16 +173,25 @@ def create_document(
             detail="Slug already exists"
         )
     
-    # Create document with authenticated user
+    # Determine editor type and ID
+    editor_id = editor['id']
+    editor_type = EditorType.AI if editor['type'] == 'agent' else EditorType.HUMAN
+    
+    # For agents, we need to get the owner_id
+    author_id = editor_id
+    if editor['type'] == 'agent':
+        author_id = editor['obj'].owner_id or editor_id
+    
+    # Create document
     new_doc = Document(
         title=doc_data.title,
         slug=doc_data.slug,
         content=doc_data.content,
         excerpt=doc_data.content[:200] if doc_data.content else None,
         category_id=doc_data.category_id,
-        author_id=current_user.id,  # Use authenticated user ID
-        last_editor_id=current_user.id,
-        last_editor_type=EditorType.HUMAN,
+        author_id=author_id,
+        last_editor_id=editor_id,
+        last_editor_type=editor_type,
         custom_metadata=doc_data.metadata,
         is_public=doc_data.is_public,
         ai_editable=doc_data.ai_editable,

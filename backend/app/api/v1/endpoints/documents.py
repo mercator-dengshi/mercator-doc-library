@@ -30,9 +30,17 @@ def get_editor_from_api_key_or_token(
         try:
             from app.core.security import get_current_agent
             agent = get_current_agent(x_api_key=x_api_key, db=db)
+            
+            # ✅ 检查API密钥权限 - 必须有create_documents权限
+            if not agent.permissions.get('create_documents', False):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="This API key does not have permission to create documents"
+                )
+            
             return {"type": "agent", "id": agent.id, "obj": agent}
         except HTTPException:
-            pass
+            raise  # Re-raise HTTPException (including permission denied)
     
     # Fallback to JWT token
     if authorization and authorization.startswith("Bearer "):
@@ -269,7 +277,13 @@ def update_document(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only edit your own documents"
             )
-    # For agents, we could add permission checks based on agent.permissions
+    elif editor['type'] == 'agent':
+        # ✅ AI Agent: 检查是否有update_documents权限
+        if not editor['obj'].permissions.get('update_documents', False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This API key does not have permission to update documents"
+            )
     
     # Check if document is archived
     if document.status == DocumentStatus.ARCHIVED:
@@ -342,7 +356,13 @@ def delete_document(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="You can only delete your own documents"
                 )
-    # For agents, we could add permission checks based on agent.permissions
+    elif editor['type'] == 'agent':
+        # ✅ AI Agent: 检查是否有delete_documents权限
+        if not editor['obj'].permissions.get('delete_documents', False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This API key does not have permission to delete documents"
+            )
     
     # Soft delete
     document.deleted_at = datetime.now(timezone.utc)

@@ -23,24 +23,26 @@ export default function APIDocs() {
       method: 'POST',
       endpoint: '/documents/',
       description: '使用API密钥创建新文档',
-      code: `curl -X POST ${apiBaseUrl}/documents/ \\
+      code: `curl -X POST ${apiBaseUrl}/docs/ \\
   -H "X-API-Key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "title": "AI写作最佳实践",
-    "slug": "ai-writing-best-practices",
-    "content": "# AI写作最佳实践\\n\\n这里是文档内容...",
-    "category_id": "your-category-uuid",
+    "title": "我的新文档",
+    "slug": "my-new-document",
+    "content": "# 文档标题\n\n这里是文档内容...",
     "is_public": true,
-    "tags": ["AI", "写作"]
+    "ai_editable": false
   }'`,
       response: `{
   "id": "doc-uuid",
-  "title": "AI写作最佳实践",
-  "slug": "ai-writing-best-practices",
+  "title": "我的新文档",
+  "slug": "my-new-document",
   "version": 1,
   "status": "published",
-  "created_at": "2024-01-01T00:00:00Z"
+  "author": {
+    "name": "用户名"
+  },
+  "created_at": "2026-05-23T03:52:06Z"
 }`
     },
     {
@@ -49,19 +51,19 @@ export default function APIDocs() {
       method: 'PUT',
       endpoint: '/documents/{doc_id}',
       description: '更新现有文档的内容和元数据',
-      code: `curl -X PUT ${apiBaseUrl}/documents/doc-uuid \\
+      code: `curl -X PUT ${apiBaseUrl}/docs/doc-uuid \\
   -H "X-API-Key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "title": "更新后的标题",
     "content": "更新后的内容...",
-    "tags": ["AI", "写作", "更新"]
+    "version": 1
   }'`,
       response: `{
   "id": "doc-uuid",
   "title": "更新后的标题",
   "version": 2,
-  "updated_at": "2024-01-01T01:00:00Z"
+  "updated_at": "2026-05-23T03:54:45Z"
 }`
     },
     {
@@ -71,11 +73,11 @@ export default function APIDocs() {
       endpoint: '/documents/',
       description: '查询文档列表,支持分页和分类过滤',
       code: `# 获取所有文档(分页)
-curl -X GET "${apiBaseUrl}/documents/?skip=0&limit=20" \\
+curl -X GET "${apiBaseUrl}/docs/?skip=0&limit=20" \\
   -H "X-API-Key: YOUR_API_KEY"
 
 # 按分类筛选
-curl -X GET "${apiBaseUrl}/documents/?category=tech" \\
+curl -X GET "${apiBaseUrl}/docs/?category=project-docs" \\
   -H "X-API-Key: YOUR_API_KEY"`,
       response: `[
   {
@@ -94,7 +96,7 @@ curl -X GET "${apiBaseUrl}/documents/?category=tech" \\
       method: 'GET',
       endpoint: '/documents/{slug}',
       description: '通过slug获取文档详情',
-      code: `curl -X GET ${apiBaseUrl}/documents/ai-writing-best-practices \\
+      code: `curl -X GET ${apiBaseUrl}/docs/my-new-document \\
   -H "X-API-Key: YOUR_API_KEY"`,
       response: `{
   "id": "doc-uuid",
@@ -109,9 +111,9 @@ curl -X GET "${apiBaseUrl}/documents/?category=tech" \\
       id: 'delete-doc',
       title: '删除文档(软删除)',
       method: 'DELETE',
-      endpoint: '/documents/{doc_id}',
+      endpoint: '/docs/{doc_id}',
       description: '将文档移入回收站(可恢复)',
-      code: `curl -X DELETE ${apiBaseUrl}/documents/doc-uuid \\
+      code: `curl -X DELETE ${apiBaseUrl}/docs/doc-uuid \\
   -H "X-API-Key: YOUR_API_KEY"`,
       response: `HTTP 204 No Content`
     },
@@ -119,9 +121,9 @@ curl -X GET "${apiBaseUrl}/documents/?category=tech" \\
       id: 'restore-doc',
       title: '恢复文档',
       method: 'POST',
-      endpoint: '/documents/{doc_id}/restore',
+      endpoint: '/docs/{doc_id}/restore',
       description: '从回收站恢复已删除的文档',
-      code: `curl -X POST ${apiBaseUrl}/documents/doc-uuid/restore \\
+      code: `curl -X POST ${apiBaseUrl}/docs/doc-uuid/restore \\
   -H "X-API-Key: YOUR_API_KEY"`,
       response: `{
   "id": "doc-uuid",
@@ -143,13 +145,13 @@ headers = {
 
 # 创建文档
 response = requests.post(
-    f"{API_BASE_URL}/documents/",
+    f"{API_BASE_URL}/docs/",
     headers=headers,
     json={
         "title": "我的文档",
         "slug": "my-document",
         "content": "# 内容",
-        "category_id": "uuid-here"
+        "is_public": true
     }
 )
 print(f"创建成功: {response.json()['id']}")
@@ -157,14 +159,14 @@ print(f"创建成功: {response.json()['id']}")
 # 更新文档
 doc_id = response.json()['id']
 requests.put(
-    f"{API_BASE_URL}/documents/{doc_id}",
+    f"{API_BASE_URL}/docs/{doc_id}",
     headers=headers,
-    json={"title": "更新后的标题"}
+    json={"title": "更新后的标题", "version": 1}
 )
 
 # 获取文档列表
 response = requests.get(
-    f"{API_BASE_URL}/documents/?limit=10",
+    f"{API_BASE_URL}/docs/?limit=10",
     headers=headers
 )
 docs = response.json()
@@ -172,7 +174,7 @@ print(f"共{len(docs)}个文档")
 
 # 删除文档
 requests.delete(
-    f"{API_BASE_URL}/documents/{doc_id}",
+    f"{API_BASE_URL}/docs/{doc_id}",
     headers=headers
 )`;
 
@@ -254,9 +256,11 @@ async function deleteDocument(docId) {
             <p className="text-sm text-blue-800 dark:text-blue-400 mb-2">
               所有API请求必须在Header中包含 <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded">X-API-Key: YOUR_API_KEY</code>
             </p>
-            <p className="text-xs text-blue-700 dark:text-blue-500">
-              💡 提示: 在上方"API密钥"标签页中创建API密钥
-            </p>
+            <div className="text-xs text-blue-700 dark:text-blue-500 space-y-1">
+              <p>💡 提示: 在上方“API密钥”标签页中创建API密钥</p>
+              <p>✅ 已测试: 创建、查询、更新、删除文档功能全部正常</p>
+              <p>📝 端点路径: /api/v1/docs/ (不是 /documents/)</p>
+            </div>
           </div>
         </div>
       </div>

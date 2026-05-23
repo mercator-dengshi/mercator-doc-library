@@ -203,7 +203,7 @@ function DashboardContent({ stats, onNavigate, versionInfo }: { stats?: any; onN
           <div className="bg-gray-50 dark:bg-gray-900 rounded p-3">
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">将用户提升为管理员</p>
             <code className="text-sm font-mono text-blue-600 dark:text-blue-400 break-all">
-              psql -U mercator -d mercator_db -c "UPDATE users SET role='admin' WHERE email='user@example.com';"
+              psql -U mercator -d mercator_db -c &quot;UPDATE users SET role=&apos;admin&apos; WHERE email=&apos;user@example.com&apos;;&quot;
             </code>
           </div>
           <div className="bg-gray-50 dark:bg-gray-900 rounded p-3">

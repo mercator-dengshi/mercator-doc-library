@@ -24,6 +24,11 @@ env/
 ENV/
 .venv
 
+# Logs
+*.log
+backend.log
+frontend.log
+
 # Node
 node_modules/
 .next/
@@ -57,18 +62,8 @@ docs/
 # But keep frontend app docs pages
 !frontend/app/docs/
 
-# Deployment scripts (exclude from GitHub)
+# All deployment and utility scripts (exclude from GitHub)
 scripts/
-!scripts/generate_env.sh
-deploy-to-ecs.sh
-rollback-ecs.sh
-auto-deploy.sh
-full-deploy-to-ecs.sh
-deploy-domain-update.sh
-get-docker.sh
-check-*.sh
-install-*.sh
-start.sh
 
 # Example and template files (exclude from GitHub)
 .env.example
